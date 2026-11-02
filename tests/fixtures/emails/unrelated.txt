@@ -1,0 +1,17 @@
+ID: fixt-unrelated
+From: Lofty <no-reply@lofty.ai>
+To: Investor <investor@example.com>
+Subject: Lofty newsletter
+Date: Fri, 10 Jul 2026 09:00:00 -0700
+Categories: promotions
+
+--- Body ---
+
+Here's what's new on Lofty this month: new markets, product updates, and
+tips for growing your real estate portfolio.
+
+Read the full newsletter on our blog.
+
+--
+You are receiving this because you subscribed to Lofty updates.
+Manage your notification preferences: https://www.lofty.ai/settings/notifications

@@ -1,0 +1,39 @@
+ID: fixt-result-roof
+From: Lofty <info@lofty.ai>
+To: Investor <investor@example.com>
+Subject: Governance Results - 742 Birchwood Ave - Offer Accepted
+Date: Tue, 28 Jul 2026 09:00:00 -0700
+Categories: updates
+
+--- Body ---
+
+Lofty ( https://lofty.ai?utm_source=transactional&utm_medium=email&utm_campaign=broadcast )
+
+Governance Results for 742 Birchwood Ave ( https://www.lofty.ai/property_deal/742-Birchwood-Ave_Springfield-Illinois-62704 ):
+
+The Governance Voting results are back for the vote on which offer to accept.
+
+The winning vote is:
+
+Yes. Accept the offer for $180,000.
+
+This option was declared the winner in Round 1 with 3,000 token votes via the Ranked Choice Voting method.
+
+The other voting options were eliminated in Round 1:
+* Accept the offer of $150,000
+* 50 token votes
+
+* Deny both offers
+* 60 token votes
+
+View signed contract ( https://www.dropbox.com/scl/fi/example00000/Offer-1-version-1.pdf?dl=0 )
+
+The property is now under contract. Updates on the closing process will be provided by the listing agent promptly.
+
+Cheers, The Lofty Team
+
+Lofty
+66 W. Flagler Street #900
+Miami, Florida 33130
+
+Click here ( http://track.customer.io/unsubscribe/EXAMPLETOKEN0000000000000000000000000003= ) to unsubscribe

@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  verify:
+    name: verify (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: linux deps
+        # dbus dev headers for the secret-service keyring backend (Linux only;
+        # macOS uses the native Keychain and needs nothing extra).
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
+      - name: fmt
+        run: cargo fmt --all -- --check
+      - name: clippy
+        run: cargo clippy --all-targets --locked -- -D warnings
+      - name: test
+        run: cargo test --all --locked
+      - name: "smoke (offline: version/help/info need no network or creds)"
+        run: |
+          cargo build --release --locked
+          ./target/release/lofty-pm --version
+          ./target/release/lofty-pm --help > /dev/null
+          ./target/release/lofty-pm info > /dev/null
+
+  security:
+    name: deny
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: cargo-deny
+        # deny.toml: advisories (yanked denied), licenses, bans, sources.
+        uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          command: check

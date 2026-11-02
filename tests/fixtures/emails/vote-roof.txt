@@ -1,0 +1,40 @@
+ID: fixt-vote-roof
+From: Lofty <info@lofty.ai>
+To: Investor <investor@example.com>
+Subject: [Action Required] Governance Vote - 742 Birchwood Ave - Offer Received
+Date: Mon, 20 Jul 2026 14:00:00 -0700
+Categories: updates
+
+--- Body ---
+
+Lofty ( https://lofty.ai?utm_source=transactional&utm_medium=email&utm_campaign=broadcast )
+
+Governance Vote for 742 Birchwood Ave ( https://www.lofty.ai/property_deal/742-Birchwood-Ave_Springfield-Illinois-62704 ):
+
+The property received an offer for $150,000. The listing agent advised that they do not believe the buyer will increase their offer any higher.
+
+The buyer has extensive experience with these types of projects and has already walked through the building. More information on the offer can be viewed below:
+* 150,000 price
+* Hard money financing
+* 1,000 earnest money deposit
+* 30-45 day close
+* 14 days for due diligence/inspections
+Owners will now have the ability to vote to accept, counter, or deny the offer. The listing agent is in the process of reducing the listing price to $190,000 per the previous governance vote.
+
+The property was originally purchased on 01/01/2021 for $240,000.
+
+The property currently has a loan balance of $10,400 and owes $25,000 in unpaid bills to the Property Manager.
+
+The results will be determined by a 60% Supermajority and sent to all owners on Friday, July 31st once the voting period ends.
+
+Click the "Vote Now" button below to vote:
+
+Vote Now ( https://loftyai.typeform.com/to/EXAMPLEVOTE01#userid=xxxxx )
+
+Cheers, The Lofty Team
+
+Lofty
+66 W. Flagler Street #900
+Miami, Florida 33130
+
+Click here ( http://track.customer.io/unsubscribe/EXAMPLETOKEN0000000000000000000000000001= ) to unsubscribe

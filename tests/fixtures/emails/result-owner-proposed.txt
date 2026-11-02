@@ -1,0 +1,31 @@
+ID: fixt-result-owner-proposed
+From: Lofty <info@lofty.ai>
+To: Investor <investor@example.com>
+Subject: Owner-Proposed Governance Results - 742 Birchwood Ave - Listing Price
+Date: Fri, 17 Jul 2026 09:00:00 -0700
+Categories: updates
+
+--- Body ---
+
+Lofty ( https://lofty.ai?utm_source=transactional&utm_medium=email&utm_campaign=broadcast )
+
+Governance Results for 742 Birchwood Ave ( https://www.lofty.ai/property_deal/742-Birchwood-Ave_Springfield-Illinois-62704 ):
+
+The Governance Voting results are back for the owner-proposed vote to lower the asking sale price of the property from $250,000 to $190,000 to speed up the sale of the property.
+
+The winning vote is:
+
+Yes, lower the listing price to $190,000.
+
+This option received 2,000 / 2,500 token votes which is equal to 80.0% of the total votes.
+
+The listing agent advised he received an offer of $150,000. We are currently waiting on more information on the offer before sending out a governance vote to investors to accept, counter, or deny
+the offer.
+
+Cheers, The Lofty Team
+
+Lofty
+66 W. Flagler Street #900
+Miami, Florida 33130
+
+Click here ( http://track.customer.io/unsubscribe/EXAMPLETOKEN0000000000000000000000000004= ) to unsubscribe

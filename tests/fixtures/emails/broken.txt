@@ -1,0 +1,8 @@
+ID: fixt-broken
+From: Lofty <no-reply@lofty.ai>
+To: Investor <investor@example.com>
+Subject: New Governance Vote: Testville - Malformed Fixture
+Date: not a real date, deliberately broken
+This line runs straight into the headers with no blank-line separator,
+which is exactly the shape `parse_read_output` is documented to reject
+(synthetic fixture — simulates an unrecognized real-world Lofty format).

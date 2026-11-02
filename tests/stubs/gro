@@ -1,0 +1,18 @@
+#!/bin/sh
+# Test stub for gro/grw. Dispatches on the subcommand; fixture dir comes
+# from GRO_STUB_DIR, the id list from GRO_STUB_IDS (space-separated).
+set -e
+while [ "$1" != "mail" ] && [ $# -gt 0 ]; do shift; done  # skip --ref etc.
+shift  # drop "mail"
+case "$1" in
+  search)
+    for id in $GRO_STUB_IDS; do echo "$id"; done ;;
+  read)
+    cat "$GRO_STUB_DIR/$2.txt" ;;
+  label)
+    echo "labeled $2" ;;
+  labels)
+    echo "INBOX" ;;
+  *)
+    echo "stub: unhandled: $*" >&2; exit 1 ;;
+esac

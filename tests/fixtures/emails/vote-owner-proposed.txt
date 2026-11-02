@@ -1,0 +1,44 @@
+ID: fixt-vote-owner-proposed
+From: Lofty <info@lofty.ai>
+To: Investor <investor@example.com>
+Subject: [Action Required] Owner-Proposed Governance Vote - 742 Birchwood Ave - Change Listing Price
+Date: Mon, 13 Jul 2026 09:00:00 -0700
+Categories: updates
+
+--- Body ---
+
+Lofty ( https://lofty.ai?utm_source=transactional&utm_medium=email&utm_campaign=broadcast )
+
+Owner-Proposed Governance Vote for 742 Birchwood Ave ( https://www.lofty.ai/property_deal/742-Birchwood-Ave_Springfield-Illinois-62704 ):
+
+An Owner with the following wallet address ( https://allo.info/account/EXAMPLEWALLETADDRESS00000000000000000000000 ) is proposing a governance vote to change the listing price.
+
+This owner holds 500 tokens in this property.
+
+This same owner also provided the existing loan ( https://www.dropbox.com/s/example00000/Loan-Agreement-742-Birchwood-Ave-Springfield-IL-62704.pdf?dl=0 ) for the property.
+
+The owner's reasoning is below, word-for-word:
+
+*Because this is an owner proposed vote, Lofty cannot change the content. It's up to owners to verify the accuracy of the claims below.
+
+This is currently listed at an unrealistically high $250,000 asking price. After a month and a half on the market, our one potential buyer bid only $200,000 and then walked away as soon as they realized what they were bidding on.
+
+I propose that we ask the agent whether a drastic cut in asking price might move this property faster -- or if not, what else might.
+
+We either need to unload this property at fire-sale prices before things get worse, or we need to make a major and extraordinarily expensive capital investment in its security and upkeep, with no guarantee of success.
+
+[Note from Lofty: the listing agent recommends reducing the listing price to $190,000 to move the property faster.]
+
+The results will be determined by a 60% Supermajority and sent to all owners on Friday, July 17th once the voting period ends.
+
+Click the "Vote Now" button below to vote:
+
+Vote Now ( https://loftyai.typeform.com/to/EXAMPLEVOTE02#userid=xxxxx )
+
+Cheers, The Lofty Team
+
+Lofty
+66 W. Flagler Street #900
+Miami, Florida 33130
+
+Click here ( http://track.customer.io/unsubscribe/EXAMPLETOKEN0000000000000000000000000002= ) to unsubscribe

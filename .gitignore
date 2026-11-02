@@ -1,0 +1,15 @@
+# Rust build artifacts
+/target
+**/*.rs.bk
+
+# Local env / editor
+.env
+.DS_Store
+.idea/
+.vscode/
+
+# Credentials must never be committed — this CLI stores no secrets, but keep
+# the family convention as a guardrail anyway.
+*.pem
+*.key
+secrets.*
