@@ -16,7 +16,8 @@ fn help_lists_the_standard_surface() {
         .stdout(predicate::str::contains("config"))
         .stdout(predicate::str::contains("self-update"))
         .stdout(predicate::str::contains("completions"))
-        .stdout(predicate::str::contains("info"));
+        .stdout(predicate::str::contains("info"))
+        .stdout(predicate::str::contains("mcp"));
 }
 
 #[test]

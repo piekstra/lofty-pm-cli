@@ -109,6 +109,11 @@ lofty-pm votes amend <id> --property <slug> --proposal-file <path-or-> \
   [--deadline <RFC3339>] [--link <url>] [--options "A/B/C"]
 ```
 
+A tool result's `unread_emails` that stays after another scan names no email, by design:
+`scan --json`'s `manual_parse` array lists them, to read by hand. A `scan_narrowed` that
+stays means the query reached the search limit of 100 emails: `config set scan_query
+<narrower query>` clears it.
+
 If several scans in a row keep producing `manual_parse` entries (check
 `scan --json`'s `manual_parse` array), tell the owner **once** that Lofty's
 email template likely changed and `lofty-pm` needs a parser update — don't

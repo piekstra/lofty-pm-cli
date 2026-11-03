@@ -7,6 +7,7 @@ mod commands;
 mod config;
 mod deadline;
 mod gmail;
+mod mcp;
 mod model;
 mod parse;
 mod store;
@@ -46,6 +47,13 @@ enum Command {
     Config(ConfigCmd),
     /// Update to the latest release from GitHub.
     SelfUpdate(SelfUpdateArgs),
+    /// Serve read-only tools to Claude and other MCP clients.
+    ///
+    /// Over stdio for Claude Code and Claude Desktop, or with --http on
+    /// 127.0.0.1 for your own Cloudflare Worker (claude.ai on the web and
+    /// mobile). The tools read the local store `scan` fills. No tool can record
+    /// a decision, cast a vote or change anything.
+    Mcp(pk_cli_mcp::McpArgs),
     /// Print a shell completion script.
     Completions { shell: Shell },
     /// Machine-readable capability discovery (cli-info/v1).
@@ -119,13 +127,19 @@ fn run(cli: &Cli) -> Result<(), CliError> {
             Ok(())
         }
         Command::Config(cmd) => config_cmd(cli, cmd, &store),
+        Command::Mcp(args) => pk_cli_mcp::run(args, mcp::tools()),
         Command::SelfUpdate(args) => Updater {
             repo: REPO.into(),
             binary: BIN.into(),
             target: env!("BUILD_TARGET").into(),
             current: env!("CARGO_PKG_VERSION").into(),
         }
-        .run(args, cli.common.json, cli.common.quiet),
+        .run_noting(
+            args,
+            cli.common.json,
+            cli.common.quiet,
+            &pk_cli_mcp::restart_note(BIN),
+        ),
         Command::Completions { shell } => {
             clap_complete::generate(*shell, &mut Cli::command(), BIN, &mut std::io::stdout());
             Ok(())
@@ -151,6 +165,7 @@ fn run(cli: &Cli) -> Result<(), CliError> {
                     "ledger",
                     "verify",
                     "init",
+                    "mcp",
                 ],
             );
             output::json(&serde_json::to_value(&info).unwrap());

@@ -111,6 +111,41 @@ fn scan_files_vote_update_and_dedups_on_rerun() {
 }
 
 #[test]
+fn a_narrowed_scan_records_that_it_was() {
+    let tmp = tempfile::tempdir().unwrap();
+    pm(tmp.path(), "vote-roof")
+        .args(["--json", "scan", "--query", "subject:roof"])
+        .assert()
+        .success();
+    let scan: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(tmp.path().join("data").join("scan.json")).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(scan["narrowed"], true, "{scan}");
+    assert_eq!(scan["unread"], 0, "{scan}");
+}
+
+/// One search returns at most this many ids and does not page, so a full list may
+/// have left mail out, however clean the rest of the scan was.
+#[test]
+fn a_scan_that_filled_the_search_cap_records_that_it_was_narrowed() {
+    let tmp = tempfile::tempdir().unwrap();
+    let ids = (0..100)
+        .map(|n| format!("broken-{n}"))
+        .collect::<Vec<_>>()
+        .join(" ");
+    pm(tmp.path(), &ids)
+        .args(["--json", "scan"])
+        .assert()
+        .success();
+    let scan: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(tmp.path().join("data").join("scan.json")).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(scan["narrowed"], true, "{scan}");
+}
+
+#[test]
 fn scan_closes_vote_on_result_email() {
     let tmp = tempfile::tempdir().unwrap();
     pm(tmp.path(), "vote-roof")
@@ -182,6 +217,12 @@ fn scan_continues_past_unparseable_email() {
         .map(|x| x.as_str().unwrap())
         .collect();
     assert_eq!(manual, vec!["broken"]);
+    let scan: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(tmp.path().join("data").join("scan.json")).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(scan["unread"], 1, "{scan}");
+    assert_eq!(scan["narrowed"], false, "{scan}");
 
     // second run, same ids: `broken` was never marked processed, so it's
     // surfaced (and fails) again, while `vote-roof` is now skipped as

@@ -1,0 +1,9 @@
+{
+  "schema": "corpus-item/v1",
+  "property": "elm-st-12",
+  "msg_id": "msg-1",
+  "date": "2030-03-01T12:00:00Z",
+  "subject": "Sample update: roof finished",
+  "kind": "update",
+  "body": "Sample update body. Photos at https://example.invalid/photos?token=dummy here."
+}

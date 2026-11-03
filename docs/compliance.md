@@ -58,6 +58,9 @@ following one rule, everywhere, no exceptions:
 - Lofty.ai pages are **never** scraped, browsed, or otherwise automated
   against directly.
 
+`lofty-pm mcp` adds no source: its tools read the local store that rule filled, and
+reach neither Lofty nor the mailbox. It returns no Vote Now link.
+
 ## What v1 actually does
 
 **v1 casts nothing.** Every path — recommend mode and auto mode alike — ends

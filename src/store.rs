@@ -7,6 +7,8 @@
 //!   verifications.json       `{schema, items: {item: Verification}}`
 //!   stance.json              `StanceFile`
 //!   ledger.jsonl             one `LedgerEntry` JSON object per line, append-only
+//!   scan.json                `{schema, at, unread, narrowed}` of the last completed
+//!                            `scan`; the last two default when absent
 
 use std::collections::BTreeMap;
 use std::fs;
@@ -98,6 +100,38 @@ impl Default for VerificationsFile {
     }
 }
 
+/// On-disk wrapper for `scan.json`: when the last scan finished.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct LastScanFile {
+    schema: String,
+    at: Option<DateTime<Utc>>,
+    #[serde(default)]
+    unread: u64,
+    #[serde(default)]
+    narrowed: bool,
+}
+
+/// What the last `scan` covered.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct LastScan {
+    pub at: DateTime<Utc>,
+    /// Emails it found and could not read. The next scan tries them again.
+    pub unread: u64,
+    /// `--query`, `--max` or the search cap kept it from all the matching mail.
+    pub narrowed: bool,
+}
+
+impl Default for LastScanFile {
+    fn default() -> Self {
+        Self {
+            schema: "scan/v1".into(),
+            at: None,
+            unread: 0,
+            narrowed: false,
+        }
+    }
+}
+
 /// Write `value` to `path` atomically: serialize to `<path>.tmp`, then
 /// `fs::rename` over the destination.
 fn write_json<T: Serialize>(path: &Path, value: &T) -> Result<(), CliError> {
@@ -123,16 +157,23 @@ fn read_json_or_default<T: for<'de> Deserialize<'de> + Default>(
 }
 
 fn resolve_data_dir() -> Result<PathBuf, CliError> {
-    if let Ok(p) = std::env::var("LOFTY_PM_DATA_DIR") {
-        if !p.is_empty() {
-            return Ok(PathBuf::from(p));
-        }
+    data_dir_from(|name| std::env::var(name).ok())
+}
+
+/// Where the data lives, given the environment. An empty variable counts as unset.
+/// Native Windows has `USERPROFILE` and normally no `HOME`.
+fn data_dir_from(env: impl Fn(&str) -> Option<String>) -> Result<PathBuf, CliError> {
+    let set = |name: &str| env(name).filter(|v| !v.is_empty());
+    if let Some(dir) = set("LOFTY_PM_DATA_DIR") {
+        return Ok(PathBuf::from(dir));
     }
-    let base = match std::env::var("XDG_DATA_HOME") {
-        Ok(x) if !x.is_empty() => PathBuf::from(x),
-        _ => {
-            let home = std::env::var("HOME").map_err(|_| {
-                CliError::Other("cannot locate home directory ($HOME unset)".into())
+    let base = match set("XDG_DATA_HOME") {
+        Some(dir) => PathBuf::from(dir),
+        None => {
+            let home = set("HOME").or_else(|| set("USERPROFILE")).ok_or_else(|| {
+                CliError::Other(
+                    "cannot locate home directory ($HOME and $USERPROFILE unset)".into(),
+                )
             })?;
             PathBuf::from(home).join(".local").join("share")
         }
@@ -145,9 +186,41 @@ pub struct Store {
     root: PathBuf,
 }
 
+/// The store as the MCP tools see it: reads alone, and opening it creates nothing,
+/// so no tool call can change the data directory or bring one into being.
+pub struct ReadStore(Store);
+
+impl ReadStore {
+    /// The default store's location, as [`Store::open`] resolves it.
+    pub fn open() -> Result<ReadStore, CliError> {
+        Ok(ReadStore::at(resolve_data_dir()?))
+    }
+
+    pub fn at(root: impl Into<PathBuf>) -> ReadStore {
+        ReadStore(Store { root: root.into() })
+    }
+
+    pub fn votes(&self) -> Result<Vec<VoteRecord>, CliError> {
+        self.0.list_votes()
+    }
+
+    pub fn corpus(&self) -> Result<Vec<CorpusItem>, CliError> {
+        self.0.list_corpus(None)
+    }
+
+    pub fn ledger(&self) -> Result<Vec<LedgerEntry>, CliError> {
+        self.0.read_ledger()
+    }
+
+    pub fn last_scan(&self) -> Result<Option<LastScan>, CliError> {
+        self.0.last_scan()
+    }
+}
+
 impl Store {
     /// Open the default store: `$LOFTY_PM_DATA_DIR` else
-    /// `${XDG_DATA_HOME:-~/.local/share}/lofty-pm`.
+    /// `${XDG_DATA_HOME:-~/.local/share}/lofty-pm`, with `$USERPROFILE` standing in for
+    /// `~` where `$HOME` is unset.
     pub fn open() -> Result<Store, CliError> {
         let dir = resolve_data_dir()?;
         Store::open_at(dir)
@@ -188,6 +261,10 @@ impl Store {
         self.root.join("ledger.jsonl")
     }
 
+    fn last_scan_path(&self) -> PathBuf {
+        self.root.join("scan.json")
+    }
+
     // -- votes ------------------------------------------------------------
 
     pub fn save_vote(&self, vote: &VoteRecord) -> Result<(), CliError> {
@@ -212,9 +289,13 @@ impl Store {
     pub fn list_votes(&self) -> Result<Vec<VoteRecord>, CliError> {
         let dir = self.votes_dir();
         let mut votes = Vec::new();
-        for entry in fs::read_dir(&dir)
-            .map_err(|e| CliError::Other(format!("reading {}: {e}", dir.display())))?
-        {
+        let entries = match fs::read_dir(&dir) {
+            Ok(entries) => entries,
+            // Only a `ReadStore` can get here: `open_at` creates the directory.
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(votes),
+            Err(e) => return Err(CliError::Other(format!("reading {}: {e}", dir.display()))),
+        };
+        for entry in entries {
             let entry =
                 entry.map_err(|e| CliError::Other(format!("reading {}: {e}", dir.display())))?;
             let path = entry.path();
@@ -359,6 +440,28 @@ impl Store {
         write_json(&self.verifications_path(), &file)
     }
 
+    // -- last scan ----------------------------------------------------------
+
+    /// Record that a scan finished, so a reader can tell how fresh the store is.
+    pub fn record_scan(&self, scan: LastScan) -> Result<(), CliError> {
+        let file = LastScanFile {
+            at: Some(scan.at),
+            unread: scan.unread,
+            narrowed: scan.narrowed,
+            ..Default::default()
+        };
+        write_json(&self.last_scan_path(), &file)
+    }
+
+    pub fn last_scan(&self) -> Result<Option<LastScan>, CliError> {
+        let file: LastScanFile = read_json_or_default(&self.last_scan_path())?;
+        Ok(file.at.map(|at| LastScan {
+            at,
+            unread: file.unread,
+            narrowed: file.narrowed,
+        }))
+    }
+
     // -- diagnostics ----------------------------------------------------------
 
     /// Write and immediately remove a small probe file at the store root.
@@ -380,6 +483,33 @@ impl Store {
 mod tests {
     use super::*;
     use crate::model::Actor;
+
+    #[test]
+    fn a_read_store_creates_nothing_and_reads_a_missing_directory_as_empty() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().join("never-created");
+        let reads = ReadStore::at(&root);
+        assert!(reads.votes().unwrap().is_empty());
+        assert!(reads.corpus().unwrap().is_empty());
+        assert!(reads.ledger().unwrap().is_empty());
+        assert_eq!(reads.last_scan().unwrap(), None);
+        assert!(!root.exists());
+    }
+
+    #[test]
+    fn the_last_scan_round_trips() {
+        let tmp = tempfile::tempdir().unwrap();
+        let s = Store::open_at(tmp.path()).unwrap();
+        assert_eq!(s.last_scan().unwrap(), None);
+        let at = "2026-07-24T12:00:00Z".parse().unwrap();
+        let scan = LastScan {
+            at,
+            unread: 2,
+            narrowed: true,
+        };
+        s.record_scan(scan).unwrap();
+        assert_eq!(s.last_scan().unwrap(), Some(scan));
+    }
 
     #[test]
     fn vote_round_trip_and_not_found() {
@@ -516,5 +646,52 @@ mod tests {
         result.unwrap();
         assert!(target.join("votes").is_dir());
         assert!(target.join("corpus").is_dir());
+    }
+
+    /// `scan.json` from before these fields existed reads as a whole scan.
+    #[test]
+    fn a_scan_file_without_coverage_reads_as_covering_everything() {
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::write(
+            tmp.path().join("scan.json"),
+            r#"{"schema":"scan/v1","at":"2030-03-02T06:00:00Z"}"#,
+        )
+        .unwrap();
+        let scan = ReadStore::at(tmp.path()).last_scan().unwrap().unwrap();
+        assert_eq!((scan.unread, scan.narrowed), (0, false));
+    }
+
+    #[test]
+    fn the_data_dir_falls_back_to_the_windows_home() {
+        let from = |vars: &[(&str, &str)]| {
+            let vars: Vec<(String, String)> = vars
+                .iter()
+                .map(|(k, v)| (k.to_string(), v.to_string()))
+                .collect();
+            data_dir_from(|name| vars.iter().find(|(k, _)| k == name).map(|(_, v)| v.clone()))
+        };
+        let under = |home: &str| {
+            PathBuf::from(home)
+                .join(".local")
+                .join("share")
+                .join("lofty-pm")
+        };
+        assert_eq!(
+            from(&[("USERPROFILE", "/profile")]).unwrap(),
+            under("/profile")
+        );
+        assert_eq!(
+            from(&[("HOME", ""), ("USERPROFILE", "/profile")]).unwrap(),
+            under("/profile")
+        );
+        assert_eq!(
+            from(&[("HOME", "/home"), ("USERPROFILE", "/profile")]).unwrap(),
+            under("/home")
+        );
+        assert_eq!(
+            from(&[("LOFTY_PM_DATA_DIR", "/picked"), ("HOME", "/home")]).unwrap(),
+            PathBuf::from("/picked")
+        );
+        assert!(from(&[]).is_err());
     }
 }

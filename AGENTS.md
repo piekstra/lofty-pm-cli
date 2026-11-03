@@ -12,11 +12,11 @@ the CLI supplies deterministic plumbing (scan/parse/state/deadlines/
 reminders), the agent supplies judgment (reading proposals, weighing them
 against the owner's stance, conversation). Built on the shared
 [`cli-common`](https://github.com/piekstra/cli-common) `pk-cli-*` crates
-(core, config, auth, self-update).
+(core, config, auth, self-update, MCP), pinned to **v0.22.0**.
 
-This repo is private today but written to go public later: no personal data
-anywhere — no account emails, no real portfolio details, no real property
-addresses — in code, docs, fixtures, or git history.
+This repo is public: no personal data anywhere — no account emails, no real
+portfolio details, no real property addresses — in code, docs, fixtures, or git
+history.
 
 ## Build, test, lint
 
@@ -40,16 +40,21 @@ re-signs the binary with the shared dev identity (see the `Makefile`).
   renders a human summary and a `--json` DTO from the same data.
 - `src/model.rs` — `VoteRecord`/`VoteState`/`Actor` and the vote state
   machine (`advance`, legal-transition checks).
+- `src/mcp.rs` — `lofty-pm mcp`: read-only tools over `ReadStore`, which offers reads
+  alone and creates nothing. Its module doc says what is withheld and why.
+  `tests/mcp_readonly.rs` holds every tool to leaving the data directory byte for byte.
 - `src/store.rs` — plain-JSON file store with atomic writes; no database.
   Data dir resolves `$LOFTY_PM_DATA_DIR`, else
-  `${XDG_DATA_HOME:-~/.local/share}/lofty-pm` (deliberately XDG-style, not
+  `${XDG_DATA_HOME:-~/.local/share}/lofty-pm`, with `$USERPROFILE` for `~` where `$HOME`
+  is unset (deliberately XDG-style, not
   `~/Library/Application Support`, for family consistency and easy test
   overriding).
 - `src/gmail.rs` — thin `gro` subprocess wrapper (search/read/label), with a
   tolerant parser for its output.
 - `src/parse.rs` — Lofty email classifier + field extractors. Template
   drift produces a `needs-manual-parse` vote rather than failing the scan.
-- `src/deadline.rs` — reminder-level sweep used by `pending`.
+- `src/deadline.rs` — the missed-deadline rule: `sweep_deadlines` writes it (used by `scan`
+  and `pending`), and `lapsed` computes the same answer without writing, for `mcp`.
 - `src/config.rs` — non-secret config (`gro_bin`/`gro_ref`/`lofty_bin`/
   `grw_bin`/per-property `modes`/reminder thresholds/high-stakes threshold).
 - `skills/lofty-pm/SKILL.md` — the agent skill: the five operating duties,
@@ -69,13 +74,15 @@ re-signs the binary with the shared dev identity (see the `Makefile`).
 - **Exit codes:** 0 ok · 2 usage · 3 auth · 4 not found · 5 upstream · 6
   confirmation required, per `piekstra-cli/1`.
 - **This CLI holds no credentials of its own** — `auth status` always
-  reports `required: false`. Mail access is `gro`, always read-only;
+  reports `required: false`. The one keychain item is the bearer token `lofty-pm mcp
+  --new-token` makes for `--http`. Mail access is `gro`, always read-only;
   Lofty account/property data is the `lofty` CLI. Never call the Lofty API
   or scrape lofty.ai pages directly from this codebase — see
   `docs/compliance.md`'s data-sourcing rule.
 - **Vote casting is out of scope for v1.** Every accept/override path ends
   by printing a Vote Now link for a human to click; nothing in this repo
-  submits a vote. Don't add code that does.
+  submits a vote. Don't add code that does. `lofty-pm mcp` does not return that
+  link at all.
 - **Tests are offline, always.** No live mail, no live API, no network. The
   gro stub (`tests/stubs/gro`) and `tests/fixtures/emails/*.txt` stand in for
   real inbox data; `LOFTY_PM_NOW` overrides the clock for deadline tests.
