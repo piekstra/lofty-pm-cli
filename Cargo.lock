@@ -1204,7 +1204,7 @@ checksum = "11d3d7f243d5c5a8b9bb5d6dd2b1602c0cb0b9db1621bafc7ed66e35ff9fe092"
 
 [[package]]
 name = "lofty-pm-cli"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "assert_cmd",
  "chrono",
@@ -1438,8 +1438,8 @@ dependencies = [
 
 [[package]]
 name = "pk-cli-auth"
-version = "0.2.0"
-source = "git+https://github.com/piekstra/cli-common?tag=v0.2.0#230b70f46e765a69dcb78f44305c5186e6f85a16"
+version = "0.15.1"
+source = "git+https://github.com/piekstra/cli-common?tag=v0.15.1#1873d2a744dd026599d89f0fa46820b2fa77510f"
 dependencies = [
  "clap",
  "pk-cli-core",
@@ -1450,8 +1450,8 @@ dependencies = [
 
 [[package]]
 name = "pk-cli-config"
-version = "0.2.0"
-source = "git+https://github.com/piekstra/cli-common?tag=v0.2.0#230b70f46e765a69dcb78f44305c5186e6f85a16"
+version = "0.15.1"
+source = "git+https://github.com/piekstra/cli-common?tag=v0.15.1#1873d2a744dd026599d89f0fa46820b2fa77510f"
 dependencies = [
  "pk-cli-core",
  "serde",
@@ -1460,30 +1460,33 @@ dependencies = [
 
 [[package]]
 name = "pk-cli-core"
-version = "0.2.0"
-source = "git+https://github.com/piekstra/cli-common?tag=v0.2.0#230b70f46e765a69dcb78f44305c5186e6f85a16"
+version = "0.15.1"
+source = "git+https://github.com/piekstra/cli-common?tag=v0.15.1#1873d2a744dd026599d89f0fa46820b2fa77510f"
 dependencies = [
  "clap",
+ "libc",
  "serde",
  "serde_json",
 ]
 
 [[package]]
 name = "pk-cli-secrets"
-version = "0.2.0"
-source = "git+https://github.com/piekstra/cli-common?tag=v0.2.0#230b70f46e765a69dcb78f44305c5186e6f85a16"
+version = "0.15.1"
+source = "git+https://github.com/piekstra/cli-common?tag=v0.15.1#1873d2a744dd026599d89f0fa46820b2fa77510f"
 dependencies = [
  "clap",
  "keyring",
  "pk-cli-core",
  "rpassword",
+ "serde",
+ "serde_json",
  "zeroize",
 ]
 
 [[package]]
 name = "pk-cli-selfupdate"
-version = "0.2.0"
-source = "git+https://github.com/piekstra/cli-common?tag=v0.2.0#230b70f46e765a69dcb78f44305c5186e6f85a16"
+version = "0.15.1"
+source = "git+https://github.com/piekstra/cli-common?tag=v0.15.1#1873d2a744dd026599d89f0fa46820b2fa77510f"
 dependencies = [
  "clap",
  "flate2",
@@ -2003,6 +2006,7 @@ version = "1.0.151"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c841b55ecdae098c80dcae9cf767f6f8a0c2cdb3416bbef72181df4d0fe73f14"
 dependencies = [
+ "indexmap",
  "itoa",
  "memchr",
  "serde",
