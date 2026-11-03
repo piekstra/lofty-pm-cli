@@ -65,9 +65,11 @@ fn server() -> Server {
          their email; no tool returns that link. Results come from the local store `lofty-pm \
          scan` fills from the user's email and do not reach Lofty, so an old last_scan means \
          they may be behind. unread_emails or scan_narrowed mean that scan did not cover all \
-         the mail, so votes may be missing. Ask the user to run `lofty-pm scan` again; if \
+         the mail, so votes may be missing. Ask the user to run `lofty-pm scan` again. If \
          unread_emails stays, `lofty-pm scan --json` lists those emails in manual_parse, to \
-         read by hand. A vote past its deadline that nobody decided reads as missed.",
+         read by hand. If scan_narrowed stays, the search limit of 100 emails was reached: \
+         `lofty-pm config set scan_query <narrower query>` clears it. A vote past its \
+         deadline that nobody decided reads as missed.",
     )
 }
 
@@ -167,8 +169,9 @@ struct Scanned<T: Serialize + JsonSchema> {
     /// stays after another scan, `lofty-pm scan --json` lists them in `manual_parse`.
     #[serde(skip_serializing_if = "is_zero")]
     unread_emails: u64,
-    /// A `--query`, `--max` or the search cap kept that scan from all the matching
-    /// mail, so it may have missed a vote.
+    /// A `--query`, `--max` or the search limit of 100 emails kept that scan from all
+    /// the matching mail, so it may have missed a vote. If this stays after another
+    /// scan the limit was reached: `lofty-pm config set scan_query <narrower query>`.
     #[serde(skip_serializing_if = "is_false")]
     scan_narrowed: bool,
     #[serde(flatten)]

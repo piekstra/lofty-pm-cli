@@ -95,7 +95,9 @@ at-your-own-risk opt-in, not a default.
 record a recommendation or a decision, or change anything. A vote is cast by you, from
 the link in your email; no tool returns that link, or any other URL in a proposal or an
 email. Results carry `last_scan`, and say when that scan could not read some mail or was
-narrowed, so run `lofty-pm scan` to pick up new mail.
+narrowed, so run `lofty-pm scan` to pick up new mail. If `scan_narrowed` stays after that,
+your query reached the search limit of 100 emails: `lofty-pm config set scan_query
+<narrower query>` clears it.
 
 **Claude Code.** After `lofty-pm scan`:
 

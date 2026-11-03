@@ -10,8 +10,9 @@ All notable changes to `lofty-pm` are documented here. Newest first. The project
   Claude Code and Claude Desktop, and with `--http` on 127.0.0.1 behind a bearer token for
   Claude on the web and mobile through your own Cloudflare Worker and tunnel. No tool can
   cast a vote, record a decision or change anything, and none returns a voting link.
-- `scan` records when it finished, how many emails it could not read and whether
-  `--query` or `--max` narrowed it, in `scan.json`, so results can say how fresh they are.
+- `scan` records when it finished, how many emails it could not read and whether `--query`,
+  `--max` or the search limit of 100 emails kept it from all the matching mail, in
+  `scan.json`, so results can say how fresh they are.
 - The store's default location falls back to `%USERPROFILE%` where `$HOME` is not set.
 - Releases attach `lofty-pm-<version>.mcpb`, a Claude Desktop extension, and a Windows
   x86_64 tarball. A release still cuts itself when a new version merges.
