@@ -1,0 +1,9 @@
+{
+  "schema": "corpus-item/v1",
+  "property": "oak-ave-34",
+  "msg_id": "msg-3",
+  "date": "2030-02-01T12:00:00Z",
+  "subject": "Sample update: fence quote",
+  "kind": "update",
+  "body": "Sample update body for the fence."
+}

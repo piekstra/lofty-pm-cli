@@ -167,6 +167,8 @@ pub fn run(ctx: &Ctx, args: &Args) -> Result<(), CliError> {
         }
     }
 
+    ctx.store.record_scan(crate::clock::now())?;
+
     let report = json!({
         "scanned": scanned,
         "new_votes": new_votes,

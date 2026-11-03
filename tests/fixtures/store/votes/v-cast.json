@@ -1,0 +1,34 @@
+{
+  "schema": "vote-record/v1",
+  "options": [
+    "Approve",
+    "Reject"
+  ],
+  "tier": "routine",
+  "recommendation": {
+    "position": "Approve",
+    "confidence": 0.5,
+    "tier": "routine",
+    "reasoning": "Sample reasoning, see www.example.invalid/analysis.",
+    "at": "2030-01-02T00:00:00Z"
+  },
+  "decision": {
+    "action": "accepted",
+    "position": "Approve",
+    "at": "2030-01-03T00:00:00Z"
+  },
+  "outcome": null,
+  "message_ids": [
+    "msg-dummy"
+  ],
+  "raw": "Sample raw email https://example.invalid/raw",
+  "reminded_levels": [],
+  "vote_link": "https://example.invalid/vote?token=dummy",
+  "id": "v-cast",
+  "property": "elm-st-12",
+  "subject": "Sample vote: paint",
+  "proposal": "Sample proposal for v-cast: replace the roof for $1,000. See https://example.invalid/vote?token=dummy for details.",
+  "state": "accepted",
+  "deadline": "2031-01-20T00:00:00Z",
+  "created_at": "2030-01-02T00:00:00Z"
+}

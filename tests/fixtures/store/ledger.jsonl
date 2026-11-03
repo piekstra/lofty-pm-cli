@@ -1,0 +1,4 @@
+{"schema": "ledger-entry/v1", "at": "2030-01-01T00:00:00Z", "vote_id": "v-decide", "actor": "scan", "event": "detected", "from": null, "to": null, "detail": null}
+{"schema": "ledger-entry/v1", "at": "2030-01-02T00:00:00Z", "vote_id": "v-decide", "actor": "agent", "event": "transition", "from": "needs-analysis", "to": "recommended", "detail": "Sample detail, see https://example.invalid/analysis"}
+{"schema": "ledger-entry/v1", "at": "2030-01-03T00:00:00Z", "vote_id": "v-cast", "actor": "human", "event": "transition", "from": "recommended", "to": "accepted", "detail": null}
+{"schema": "ledger-entry/v1", "at": "2030-01-04T00:00:00Z", "vote_id": null, "actor": "agent", "event": "note", "from": null, "to": null, "detail": null}

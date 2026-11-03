@@ -1,0 +1,30 @@
+{
+  "schema": "vote-record/v1",
+  "options": [
+    "Approve",
+    "Reject"
+  ],
+  "tier": "routine",
+  "recommendation": {
+    "position": "Approve",
+    "confidence": 0.5,
+    "tier": "routine",
+    "reasoning": "Sample reasoning, see www.example.invalid/analysis.",
+    "at": "2030-01-02T00:00:00Z"
+  },
+  "decision": null,
+  "outcome": null,
+  "message_ids": [
+    "msg-dummy"
+  ],
+  "raw": "Sample raw email https://example.invalid/raw",
+  "reminded_levels": [],
+  "vote_link": "https://example.invalid/vote?token=dummy",
+  "id": "v-decide",
+  "property": "elm-st-12",
+  "subject": "Sample vote: roof",
+  "proposal": "Sample proposal for v-decide: replace the roof for $1,000. See https://example.invalid/vote?token=dummy for details.",
+  "state": "recommended",
+  "deadline": "2031-01-10T00:00:00Z",
+  "created_at": "2030-01-01T00:00:00Z"
+}

@@ -7,6 +7,7 @@
 //!   verifications.json       `{schema, items: {item: Verification}}`
 //!   stance.json              `StanceFile`
 //!   ledger.jsonl             one `LedgerEntry` JSON object per line, append-only
+//!   scan.json                `{schema, at}` of the last completed `scan`
 
 use std::collections::BTreeMap;
 use std::fs;
@@ -98,6 +99,22 @@ impl Default for VerificationsFile {
     }
 }
 
+/// On-disk wrapper for `scan.json`: when the last scan finished.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct LastScanFile {
+    schema: String,
+    at: Option<DateTime<Utc>>,
+}
+
+impl Default for LastScanFile {
+    fn default() -> Self {
+        Self {
+            schema: "scan/v1".into(),
+            at: None,
+        }
+    }
+}
+
 /// Write `value` to `path` atomically: serialize to `<path>.tmp`, then
 /// `fs::rename` over the destination.
 fn write_json<T: Serialize>(path: &Path, value: &T) -> Result<(), CliError> {
@@ -145,6 +162,37 @@ pub struct Store {
     root: PathBuf,
 }
 
+/// The store as the MCP tools see it: reads alone, and opening it creates nothing,
+/// so no tool call can change the data directory or bring one into being.
+pub struct ReadStore(Store);
+
+impl ReadStore {
+    /// The default store's location, as [`Store::open`] resolves it.
+    pub fn open() -> Result<ReadStore, CliError> {
+        Ok(ReadStore::at(resolve_data_dir()?))
+    }
+
+    pub fn at(root: impl Into<PathBuf>) -> ReadStore {
+        ReadStore(Store { root: root.into() })
+    }
+
+    pub fn votes(&self) -> Result<Vec<VoteRecord>, CliError> {
+        self.0.list_votes()
+    }
+
+    pub fn corpus(&self) -> Result<Vec<CorpusItem>, CliError> {
+        self.0.list_corpus(None)
+    }
+
+    pub fn ledger(&self) -> Result<Vec<LedgerEntry>, CliError> {
+        self.0.read_ledger()
+    }
+
+    pub fn last_scan(&self) -> Result<Option<DateTime<Utc>>, CliError> {
+        self.0.last_scan()
+    }
+}
+
 impl Store {
     /// Open the default store: `$LOFTY_PM_DATA_DIR` else
     /// `${XDG_DATA_HOME:-~/.local/share}/lofty-pm`.
@@ -188,6 +236,10 @@ impl Store {
         self.root.join("ledger.jsonl")
     }
 
+    fn last_scan_path(&self) -> PathBuf {
+        self.root.join("scan.json")
+    }
+
     // -- votes ------------------------------------------------------------
 
     pub fn save_vote(&self, vote: &VoteRecord) -> Result<(), CliError> {
@@ -212,9 +264,13 @@ impl Store {
     pub fn list_votes(&self) -> Result<Vec<VoteRecord>, CliError> {
         let dir = self.votes_dir();
         let mut votes = Vec::new();
-        for entry in fs::read_dir(&dir)
-            .map_err(|e| CliError::Other(format!("reading {}: {e}", dir.display())))?
-        {
+        let entries = match fs::read_dir(&dir) {
+            Ok(entries) => entries,
+            // Only a `ReadStore` can get here: `open_at` creates the directory.
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(votes),
+            Err(e) => return Err(CliError::Other(format!("reading {}: {e}", dir.display()))),
+        };
+        for entry in entries {
             let entry =
                 entry.map_err(|e| CliError::Other(format!("reading {}: {e}", dir.display())))?;
             let path = entry.path();
@@ -359,6 +415,22 @@ impl Store {
         write_json(&self.verifications_path(), &file)
     }
 
+    // -- last scan ----------------------------------------------------------
+
+    /// Record that a scan finished, so a reader can tell how fresh the store is.
+    pub fn record_scan(&self, at: DateTime<Utc>) -> Result<(), CliError> {
+        let file = LastScanFile {
+            at: Some(at),
+            ..Default::default()
+        };
+        write_json(&self.last_scan_path(), &file)
+    }
+
+    pub fn last_scan(&self) -> Result<Option<DateTime<Utc>>, CliError> {
+        let file: LastScanFile = read_json_or_default(&self.last_scan_path())?;
+        Ok(file.at)
+    }
+
     // -- diagnostics ----------------------------------------------------------
 
     /// Write and immediately remove a small probe file at the store root.
@@ -380,6 +452,28 @@ impl Store {
 mod tests {
     use super::*;
     use crate::model::Actor;
+
+    #[test]
+    fn a_read_store_creates_nothing_and_reads_a_missing_directory_as_empty() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().join("never-created");
+        let reads = ReadStore::at(&root);
+        assert!(reads.votes().unwrap().is_empty());
+        assert!(reads.corpus().unwrap().is_empty());
+        assert!(reads.ledger().unwrap().is_empty());
+        assert_eq!(reads.last_scan().unwrap(), None);
+        assert!(!root.exists());
+    }
+
+    #[test]
+    fn the_last_scan_round_trips() {
+        let tmp = tempfile::tempdir().unwrap();
+        let s = Store::open_at(tmp.path()).unwrap();
+        assert_eq!(s.last_scan().unwrap(), None);
+        let at = "2026-07-24T12:00:00Z".parse().unwrap();
+        s.record_scan(at).unwrap();
+        assert_eq!(s.last_scan().unwrap(), Some(at));
+    }
 
     #[test]
     fn vote_round_trip_and_not_found() {

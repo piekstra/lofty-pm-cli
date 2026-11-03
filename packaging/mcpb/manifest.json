@@ -1,0 +1,77 @@
+{
+  "manifest_version": "0.3",
+  "name": "lofty-pm",
+  "display_name": "Lofty governance (lofty-pm)",
+  "version": "0.2.0",
+  "description": "Read-only access to the Lofty governance votes and property updates that lofty-pm has filed from your email, through the open-source lofty-pm CLI.",
+  "long_description": "Ask Claude about your Lofty properties' governance: which votes wait on you and how long you have, what a proposal says, how past votes went, what the update emails said and who decided what. Four read-only tools, loftypm_pending, loftypm_votes, loftypm_digest and loftypm_ledger, over the local store `lofty-pm scan` fills from your email. Nothing can cast a vote, record a recommendation or a decision, or change anything, and no tool reaches Lofty or your mailbox. A vote is cast by you, from the link in your email; no tool returns that link. The extension takes no settings and holds no credential: first install the lofty-pm CLI and run `lofty-pm scan`, and run it again to pick up new mail. What the tools return (property names, vote subjects and proposals, recommendations, your decisions, email excerpts) goes to Claude as part of your conversation. Unofficial; not affiliated with Lofty.",
+  "author": {
+    "name": "piekstra",
+    "url": "https://github.com/piekstra"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/piekstra/lofty-pm-cli"
+  },
+  "homepage": "https://github.com/piekstra/lofty-pm-cli",
+  "documentation": "https://github.com/piekstra/lofty-pm-cli#use-with-claude",
+  "support": "https://github.com/piekstra/lofty-pm-cli/issues",
+  "license": "MIT",
+  "keywords": [
+    "lofty",
+    "governance",
+    "real-estate",
+    "votes",
+    "read-only"
+  ],
+  "server": {
+    "type": "binary",
+    "entry_point": "server/lofty-pm",
+    "mcp_config": {
+      "command": "${__dirname}/server/lofty-pm",
+      "args": [
+        "mcp"
+      ],
+      "platform_overrides": {
+        "win32": {
+          "command": "${__dirname}/server/lofty-pm.exe",
+          "args": [
+            "mcp"
+          ]
+        },
+        "linux": {
+          "command": "${__dirname}/server/linux/lofty-pm",
+          "args": [
+            "mcp"
+          ]
+        }
+      }
+    }
+  },
+  "tools": [
+    {
+      "name": "loftypm_pending",
+      "description": "The votes someone has yet to act on, soonest deadline first."
+    },
+    {
+      "name": "loftypm_votes",
+      "description": "Every tracked vote, what it proposes and how it went."
+    },
+    {
+      "name": "loftypm_digest",
+      "description": "Update and result emails filed for your properties."
+    },
+    {
+      "name": "loftypm_ledger",
+      "description": "The audit trail of what happened to each vote."
+    }
+  ],
+  "tools_generated": false,
+  "compatibility": {
+    "platforms": [
+      "darwin",
+      "win32",
+      "linux"
+    ]
+  }
+}

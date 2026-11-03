@@ -1,0 +1,24 @@
+{
+  "schema": "vote-record/v1",
+  "options": [
+    "Approve",
+    "Reject"
+  ],
+  "tier": "routine",
+  "recommendation": null,
+  "decision": null,
+  "outcome": null,
+  "message_ids": [
+    "msg-dummy"
+  ],
+  "raw": "Sample raw email https://example.invalid/raw",
+  "reminded_levels": [],
+  "vote_link": "https://example.invalid/vote?token=dummy",
+  "id": "v-analyze",
+  "property": "oak-ave-34",
+  "subject": "Sample vote: fence",
+  "proposal": "Sample proposal for v-analyze: replace the roof for $1,000. See https://example.invalid/vote?token=dummy for details.",
+  "state": "needs-analysis",
+  "deadline": "2031-01-05T00:00:00Z",
+  "created_at": "2030-01-03T00:00:00Z"
+}

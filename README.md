@@ -18,7 +18,8 @@ against your stance, conversing with you). All mail access goes through the
 [`gro`](https://github.com/open-cli-collective/google-readonly) binary and
 all Lofty account/property data through the
 [`lofty`](https://github.com/piekstra/lofty-cli) binary — this CLI holds no
-credentials of its own and makes no direct calls to lofty.ai.
+credentials of its own and makes no direct calls to lofty.ai. `lofty-pm mcp` serves
+what it has filed to Claude, read-only.
 
 > **Not affiliated with or endorsed by Lofty.** An independent, unofficial
 > tool. See [`docs/compliance.md`](docs/compliance.md) for the
@@ -28,7 +29,7 @@ credentials of its own and makes no direct calls to lofty.ai.
 ## Install
 
 ```console
-# from source (recent stable Rust; MSRV 1.88)
+# from source (recent stable Rust; MSRV 1.89)
 $ cargo install --git https://github.com/piekstra/lofty-pm-cli --locked
 
 # or clone + build
@@ -86,11 +87,68 @@ will succeed: all three ToS verifications in
 requires an explicit `--acknowledge-risk` flag every time — it is an
 at-your-own-risk opt-in, not a default.
 
+## Use with Claude
+
+`lofty-pm mcp` serves four read-only tools to Claude over MCP: `loftypm_pending`,
+`loftypm_votes`, `loftypm_digest` and `loftypm_ledger`. They read the local store
+`lofty-pm scan` fills, and reach neither Lofty nor your mailbox. Nothing can cast a vote,
+record a recommendation or a decision, or change anything. A vote is cast by you, from
+the link in your email; no tool returns that link, or any other URL in a proposal or an
+email. Results carry `last_scan`, so run `lofty-pm scan` to pick up new mail.
+
+**Claude Code.** After `lofty-pm scan`:
+
+```sh
+claude mcp add loftypm -- lofty-pm mcp
+```
+
+Or install the `lofty-pm-cli` plugin from
+[claude-plugins](https://github.com/piekstra/claude-plugins), which runs the same
+command.
+
+**Claude Desktop.** Download `lofty-pm-<version>.mcpb` from the
+[latest release](https://github.com/piekstra/lofty-pm-cli/releases/latest) and open it.
+It asks for nothing and holds no credential: the bundled `lofty-pm` reads the store your
+installed `lofty-pm` keeps at `~/.local/share/lofty-pm`. An extension does not see
+`$LOFTY_PM_DATA_DIR`, so a store kept elsewhere needs the Claude Code route, which does.
+
+Any other MCP client that launches a local server can run `lofty-pm mcp`.
+
+**Claude on the web and mobile.** claude.ai reaches tools through a remote connector,
+and your store stays on your computer, so `lofty-pm` serves the same tools from your
+computer to a connector you deploy into your own Cloudflare account:
+
+```console
+$ lofty-pm mcp --new-token            # once: a bearer token, saved in the keychain and printed for the Worker
+$ lofty-pm mcp --http --port 8752     # serve on 127.0.0.1 only
+```
+
+The connector, [cli-common's `connector/`](https://github.com/piekstra/cli-common/tree/main/connector#tools-from-your-computer-home-modules),
+reaches that port through a Cloudflare Tunnel in your account; its README walks through
+the tunnel, the VPC service, a launchd agent that keeps the server running, and the
+`HOME_LOFTYPM_TOKEN` secret, with the threat model. `--http` binds 127.0.0.1 only,
+refuses to start without the token, refuses any request whose `Host` is not loopback or
+that carries an `Origin`, and serves the read-only tools only. Tool results do leave your
+computer: property names, vote subjects and proposals, recommendations, your decisions
+and email excerpts pass through Cloudflare and reach Claude
+([`SECURITY.md`](SECURITY.md)). While the computer sleeps, the tools answer that it is
+offline.
+
+After `lofty-pm self-update`, restart the server: a running one keeps the old code, and
+its launchd agent restarts it only when it exits. Its start line names the version.
+
+```console
+$ launchctl kickstart -k gui/$(id -u)/com.piekstra.lofty-pm-mcp-http
+```
+
+`self-update` does not reach a Claude Desktop extension, which runs its own copy.
+Install the new release's `.mcpb` too.
+
 ## Conformance
 
 Conforms to piekstra-cli spec v1 ([`cli-common`](https://github.com/piekstra/cli-common)):
 `--json` with schema-versioned DTOs on every command, frozen exit codes 0–6,
-`self-update`, `info` (`cli-info/v1`), shell `completions`.
+`self-update`, `info` (`cli-info/v1`), shell `completions`, and the MCP profile.
 
 ## Development
 

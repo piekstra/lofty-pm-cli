@@ -7,7 +7,7 @@ use pk_cli_core::CliError;
 use serde::{Deserialize, Serialize};
 
 /// Lifecycle of a single vote, from first sighting through resolution.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum VoteState {
     NeedsManualParse,
