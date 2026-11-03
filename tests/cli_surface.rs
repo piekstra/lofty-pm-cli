@@ -38,6 +38,21 @@ fn auth_status_reports_credential_free() {
 }
 
 #[test]
+fn no_color_in_the_environment_never_fails_a_command() {
+    // Any non-empty NO_COLOR disables color (no-color.org); parsed as a
+    // bool, the conventional NO_COLOR=1 was a usage error.
+    let tmp = tempfile::tempdir().unwrap();
+    for v in ["1", "true", "0", ""] {
+        pm().env("XDG_CONFIG_HOME", tmp.path().join("cfg"))
+            .env("LOFTY_PM_DATA_DIR", tmp.path().join("data"))
+            .env("NO_COLOR", v)
+            .args(["completions", "bash"])
+            .assert()
+            .success();
+    }
+}
+
+#[test]
 fn unknown_config_key_is_usage_error_exit_2() {
     let tmp = tempfile::tempdir().unwrap();
     let out = pm()
