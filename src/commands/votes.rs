@@ -372,11 +372,24 @@ mod tests {
     use super::*;
     use std::os::unix::fs::PermissionsExt;
 
+    /// Write `script` from a child process, so this process never holds it open for
+    /// writing. A fork on another test's thread keeps a copy of every descriptor open
+    /// here until it execs, and on Linux running a file with a write descriptor open
+    /// anywhere fails with ETXTBSY (os error 26).
+    fn write_from_a_child(path: &std::path::Path, script: &str) {
+        let status = std::process::Command::new("sh")
+            .args(["-c", "printf %s \"$1\" > \"$2\"", "sh", script])
+            .arg(path)
+            .status()
+            .unwrap();
+        assert!(status.success(), "writing {}", path.display());
+    }
+
     /// Write an executable shell script stub at `dir/lofty` and return its
     /// path as a `Config` pointing `lofty_bin` at it.
     fn stub_cfg(dir: &std::path::Path, script: &str) -> Config {
         let path = dir.join("lofty");
-        std::fs::write(&path, format!("#!/bin/sh\n{script}\n")).unwrap();
+        write_from_a_child(&path, &format!("#!/bin/sh\n{script}\n"));
         let mut perms = std::fs::metadata(&path).unwrap().permissions();
         perms.set_mode(0o755);
         std::fs::set_permissions(&path, perms).unwrap();
