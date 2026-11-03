@@ -45,7 +45,8 @@ re-signs the binary with the shared dev identity (see the `Makefile`).
   `tests/mcp_readonly.rs` holds every tool to leaving the data directory byte for byte.
 - `src/store.rs` — plain-JSON file store with atomic writes; no database.
   Data dir resolves `$LOFTY_PM_DATA_DIR`, else
-  `${XDG_DATA_HOME:-~/.local/share}/lofty-pm` (deliberately XDG-style, not
+  `${XDG_DATA_HOME:-~/.local/share}/lofty-pm`, with `$USERPROFILE` for `~` where `$HOME`
+  is unset (deliberately XDG-style, not
   `~/Library/Application Support`, for family consistency and easy test
   overriding).
 - `src/gmail.rs` — thin `gro` subprocess wrapper (search/read/label), with a

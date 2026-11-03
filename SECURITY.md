@@ -10,7 +10,8 @@ rather than a public issue.
 
 `lofty-pm` holds no portal credentials. Mail is read through `gro` and Lofty data through
 `lofty`, each with its own credentials. What it keeps is a plain-JSON store under
-`$LOFTY_PM_DATA_DIR`, else `${XDG_DATA_HOME:-~/.local/share}/lofty-pm`: votes, filed email
+`$LOFTY_PM_DATA_DIR`, else `${XDG_DATA_HOME:-~/.local/share}/lofty-pm` (`$USERPROFILE` for
+`~` where `$HOME` is unset): votes, filed email
 text, your stance answers, recommendations, your decisions and an audit ledger. A vote's
 record holds its Vote Now link. Anyone who can read that directory can read all of this.
 

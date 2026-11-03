@@ -64,9 +64,10 @@ fn server() -> Server {
          decision, or change anything. A vote is cast by the user on Lofty, from the link in \
          their email; no tool returns that link. Results come from the local store `lofty-pm \
          scan` fills from the user's email and do not reach Lofty, so an old last_scan means \
-         they may be behind, and unread_emails or scan_narrowed mean that scan did not cover \
-         all the mail: votes may be missing until the user runs `lofty-pm scan` again. A vote \
-         past its deadline that nobody decided reads as missed.",
+         they may be behind. unread_emails or scan_narrowed mean that scan did not cover all \
+         the mail, so votes may be missing. Ask the user to run `lofty-pm scan` again; if \
+         unread_emails stays, `lofty-pm scan --json` lists those emails in manual_parse, to \
+         read by hand. A vote past its deadline that nobody decided reads as missed.",
     )
 }
 
@@ -162,10 +163,12 @@ fn is_false(b: &bool) -> bool {
 struct Scanned<T: Serialize + JsonSchema> {
     /// When `lofty-pm scan` last finished. Null if no scan has recorded one.
     last_scan: Option<String>,
-    /// Emails that scan found and could not read, so it may have missed a vote.
+    /// Emails that scan found and could not read, so it may have missed a vote. If this
+    /// stays after another scan, `lofty-pm scan --json` lists them in `manual_parse`.
     #[serde(skip_serializing_if = "is_zero")]
     unread_emails: u64,
-    /// That scan had a `--query` or `--max`, so it may have missed a vote.
+    /// A `--query`, `--max` or the search cap kept that scan from all the matching
+    /// mail, so it may have missed a vote.
     #[serde(skip_serializing_if = "is_false")]
     scan_narrowed: bool,
     #[serde(flatten)]

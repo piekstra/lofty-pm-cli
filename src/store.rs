@@ -7,7 +7,8 @@
 //!   verifications.json       `{schema, items: {item: Verification}}`
 //!   stance.json              `StanceFile`
 //!   ledger.jsonl             one `LedgerEntry` JSON object per line, append-only
-//!   scan.json                `{schema, at}` of the last completed `scan`
+//!   scan.json                `{schema, at, unread, narrowed}` of the last completed
+//!                            `scan`; the last two default when absent
 
 use std::collections::BTreeMap;
 use std::fs;
@@ -116,7 +117,7 @@ pub struct LastScan {
     pub at: DateTime<Utc>,
     /// Emails it found and could not read. The next scan tries them again.
     pub unread: u64,
-    /// `--query` or `--max` kept it from the whole mailbox query.
+    /// `--query`, `--max` or the search cap kept it from all the matching mail.
     pub narrowed: bool,
 }
 
@@ -170,7 +171,9 @@ fn data_dir_from(env: impl Fn(&str) -> Option<String>) -> Result<PathBuf, CliErr
         Some(dir) => PathBuf::from(dir),
         None => {
             let home = set("HOME").or_else(|| set("USERPROFILE")).ok_or_else(|| {
-                CliError::Other("cannot locate home directory ($HOME unset)".into())
+                CliError::Other(
+                    "cannot locate home directory ($HOME and $USERPROFILE unset)".into(),
+                )
             })?;
             PathBuf::from(home).join(".local").join("share")
         }
@@ -216,7 +219,8 @@ impl ReadStore {
 
 impl Store {
     /// Open the default store: `$LOFTY_PM_DATA_DIR` else
-    /// `${XDG_DATA_HOME:-~/.local/share}/lofty-pm`.
+    /// `${XDG_DATA_HOME:-~/.local/share}/lofty-pm`, with `$USERPROFILE` standing in for
+    /// `~` where `$HOME` is unset.
     pub fn open() -> Result<Store, CliError> {
         let dir = resolve_data_dir()?;
         Store::open_at(dir)

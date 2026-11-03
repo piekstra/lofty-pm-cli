@@ -22,6 +22,10 @@ pub struct RawEmail {
     pub body: String,
 }
 
+/// The most ids one search returns. It does not page, and ids already processed
+/// take up slots, so a full list may have left mail out.
+pub const SEARCH_CAP: usize = 100;
+
 /// Thin wrapper around a `gro`/`grw`-compatible binary for one configured
 /// profile (`--ref`).
 pub struct Gmail {
@@ -53,7 +57,8 @@ impl Gmail {
 
     pub fn search_ids(&self, query: &str) -> Result<Vec<String>, CliError> {
         let mut cmd = self.base_command();
-        cmd.args(["mail", "search", query, "--ids", "--max", "100"]);
+        let cap = SEARCH_CAP.to_string();
+        cmd.args(["mail", "search", query, "--ids", "--max", cap.as_str()]);
         let out = run(cmd, self.ref_label())?;
         Ok(out
             .lines()

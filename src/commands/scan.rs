@@ -7,7 +7,7 @@ use serde_json::json;
 
 use crate::commands::{emit, Ctx};
 use crate::deadline::sweep_deadlines;
-use crate::gmail::Gmail;
+use crate::gmail::{Gmail, SEARCH_CAP};
 use crate::model::{Actor, LedgerEntry, VoteRecord, VoteState};
 use crate::parse::{classify, default_tier, extract_amount, Classified};
 use crate::store::{CorpusItem, LastScan};
@@ -34,7 +34,7 @@ pub fn run(ctx: &Ctx, args: &Args) -> Result<(), CliError> {
         .as_deref()
         .unwrap_or_else(|| ctx.cfg.scan_query());
     let mut ids = gmail.search_ids(query)?;
-    let mut narrowed = args.query.is_some();
+    let mut narrowed = args.query.is_some() || ids.len() >= SEARCH_CAP;
     if let Some(max) = args.max {
         narrowed |= ids.len() > max;
         ids.truncate(max);
