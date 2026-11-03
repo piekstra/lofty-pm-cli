@@ -61,13 +61,20 @@ fn the_manifest_lists_exactly_the_served_tools() {
     assert_eq!(listed, served);
 }
 
-/// The extension asks for nothing and passes nothing: a token expires, so it
-/// would not last in a settings form, and the password never reaches a tool. The
-/// binary reads what `lofty-pm auth login` stored in the OS keychain.
+/// The extension holds no credential: its one setting says where the store is, for
+/// someone whose shell, which a desktop app does not see, sets that.
 #[test]
 fn every_platform_runs_mcp_with_no_credential_in_its_config() {
     let m = manifest();
-    assert!(m.get("user_config").is_none(), "no settings to fill in");
+    let settings = m["user_config"].as_object().unwrap();
+    assert_eq!(settings.keys().collect::<Vec<_>>(), ["data_dir"]);
+    assert_eq!(settings["data_dir"]["type"], "directory");
+    assert_eq!(settings["data_dir"]["required"], false);
+    assert!(settings["data_dir"].get("sensitive").is_none());
+    assert!(settings["data_dir"]["default"]
+        .as_str()
+        .unwrap()
+        .ends_with("/.local/share/lofty-pm"));
     let config = &m["server"]["mcp_config"];
     let mut configs = vec![config.clone()];
     for os in ["win32", "linux"] {
@@ -82,7 +89,11 @@ fn every_platform_runs_mcp_with_no_credential_in_its_config() {
                 .starts_with("${__dirname}/server/"),
             "{c}"
         );
-        assert!(c.get("env").is_none(), "{c}");
+        assert_eq!(
+            c["env"],
+            json!({"LOFTY_PM_DATA_DIR": "${user_config.data_dir}"}),
+            "{c}"
+        );
     }
     let text = m["long_description"].as_str().unwrap();
     assert!(text.contains("lofty-pm scan"), "{text}");

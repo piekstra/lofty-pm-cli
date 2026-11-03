@@ -165,12 +165,34 @@ fn a_store_from_before_the_scan_time_was_kept_says_so_with_a_null() {
     assert!(got["returned"].as_u64().unwrap() > 0);
 }
 
+/// A clean scan says nothing extra, and one that missed mail says so on every tool,
+/// since `last_scan` alone would read as fresh.
+#[test]
+fn a_scan_that_did_not_cover_the_mail_says_so() {
+    let (tools, dir) = over_fixture();
+    for name in TOOLS {
+        let got = ok(&tools, name, json!({}));
+        assert!(got.get("unread_emails").is_none(), "{name}: {got}");
+        assert!(got.get("scan_narrowed").is_none(), "{name}: {got}");
+    }
+    std::fs::write(
+        dir.path().join("scan.json"),
+        r#"{"schema":"scan/v1","at":"2030-03-02T06:00:00Z","unread":2,"narrowed":true}"#,
+    )
+    .unwrap();
+    for name in TOOLS {
+        let got = ok(&tools, name, json!({}));
+        assert_eq!(got["unread_emails"], 2, "{name}");
+        assert_eq!(got["scan_narrowed"], true, "{name}");
+    }
+}
+
 #[test]
 fn pending_lists_what_waits_on_someone_soonest_deadline_first() {
     let (tools, _dir) = over_fixture();
     let got = ok(&tools, "loftypm_pending", json!({}));
     assert_eq!(got["last_scan"], "2030-03-02T06:00:00Z");
-    assert_eq!(ids(&got), ["v-analyze", "v-decide", "v-cast"]);
+    assert_eq!(ids(&got), ["v-analyze", "v-decide", "v-msg-cast"]);
     assert_eq!(got["missed"], 1);
     let items = got["items"].as_array().unwrap();
     assert_eq!(items[0]["waiting_on"], "analysis");
@@ -204,7 +226,13 @@ fn votes_list_newest_first_and_narrow() {
     let got = ok(&tools, "loftypm_votes", json!({}));
     assert_eq!(
         ids(&got),
-        ["v-analyze", "v-cast", "v-decide", "v-closed", "v-lapsed"]
+        [
+            "v-analyze",
+            "v-msg-cast",
+            "v-decide",
+            "v-closed",
+            "v-lapsed"
+        ]
     );
     let got = ok(&tools, "loftypm_votes", json!({"property": "OAK"}));
     assert_eq!(ids(&got), ["v-analyze", "v-closed"]);
@@ -240,7 +268,8 @@ fn only_detailed_carries_the_proposal_and_the_reasoning() {
 }
 
 /// A Vote Now link reaches the ballot, so it is out of every result: the record's
-/// own field, and any URL quoted in the text. Message ids and the raw email too.
+/// own field, and any URL quoted in the text. The raw email too, and every message
+/// id except the one a vote's own id is built from (`v-msg-cast`, as `scan` builds it).
 #[test]
 fn no_result_carries_a_link_a_message_id_or_the_raw_email() {
     let (tools, _dir) = over_fixture();
@@ -251,7 +280,18 @@ fn no_result_carries_a_link_a_message_id_or_the_raw_email() {
         ] {
             let result = call(&tools, name, args.clone());
             let text = assert_fits(&tools, name, &result).to_string();
-            for held_back in ["example.invalid", "token=", "http", "msg-", "Sample raw"] {
+            for held_back in [
+                "example.invalid",
+                "token=",
+                "http",
+                "msg-later",
+                "msg-dummy",
+                "msg-1",
+                "msg-2",
+                "msg-3",
+                "message_ids",
+                "Sample raw",
+            ] {
                 assert!(
                     !text.contains(held_back),
                     "{name} {args}: {held_back} in {text}"

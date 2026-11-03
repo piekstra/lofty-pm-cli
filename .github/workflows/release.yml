@@ -21,7 +21,9 @@ name: release
 # manifest must agree, or nothing is built or published.
 # `publish` attaches whatever was built even when one OS failed, then fails
 # the run if any expected asset is missing, so a partial release is never
-# a green one.
+# a green one. It has created the tag by then, and `versions` reads an existing
+# tag as released, so a later push or "Re-run all jobs" skips the release. To
+# backfill, use "Re-run failed jobs" on that same run.
 #
 # A pull request that changes how releases are built, or the dependencies
 # and version (Cargo.toml, Cargo.lock), runs every job but `publish` as a

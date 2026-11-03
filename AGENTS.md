@@ -12,7 +12,7 @@ the CLI supplies deterministic plumbing (scan/parse/state/deadlines/
 reminders), the agent supplies judgment (reading proposals, weighing them
 against the owner's stance, conversation). Built on the shared
 [`cli-common`](https://github.com/piekstra/cli-common) `pk-cli-*` crates
-(core, config, auth, self-update, MCP), pinned to **v0.21.0**.
+(core, config, auth, self-update, MCP), pinned to **v0.22.0**.
 
 This repo is public: no personal data anywhere — no account emails, no real
 portfolio details, no real property addresses — in code, docs, fixtures, or git
@@ -52,7 +52,8 @@ re-signs the binary with the shared dev identity (see the `Makefile`).
   tolerant parser for its output.
 - `src/parse.rs` — Lofty email classifier + field extractors. Template
   drift produces a `needs-manual-parse` vote rather than failing the scan.
-- `src/deadline.rs` — reminder-level sweep used by `pending`.
+- `src/deadline.rs` — the missed-deadline rule: `sweep_deadlines` writes it (used by `scan`
+  and `pending`), and `lapsed` computes the same answer without writing, for `mcp`.
 - `src/config.rs` — non-secret config (`gro_bin`/`gro_ref`/`lofty_bin`/
   `grw_bin`/per-property `modes`/reminder thresholds/high-stakes threshold).
 - `skills/lofty-pm/SKILL.md` — the agent skill: the five operating duties,

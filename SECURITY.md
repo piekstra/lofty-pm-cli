@@ -25,8 +25,10 @@ confidence, a recommendation's reasoning and a ledger entry's detail are added w
 model asks for `detailed`.
 
 These are never returned, in any format: a vote's link, any URL in the text of a proposal
-or an email (a Vote Now link reaches the ballot), the raw email, message ids, and your
-stance answers.
+or an email (a Vote Now link reaches the ballot), the raw email, and your stance answers.
+Message ids are not returned either, with one exception: a vote's id is `v-` and the id of
+the email that announced it, because that is the name `lofty-pm` knows the vote by. It
+opens nothing without access to your mailbox.
 
 A tool reads files under the data directory and nothing else: no mail, no Lofty, no
 subprocess, no config, no keychain. The server opens the store with a type that offers
@@ -40,8 +42,9 @@ through the real binary and fails on any change to the directory or any subproce
 Text in results came from email. The server tells the model to treat it as data and never
 as instructions, and no tool could act on such directions anyway.
 
-The Claude Desktop extension (`.mcpb`) takes no settings and holds no credential. Over
-stdio no keychain item is read at all.
+The Claude Desktop extension (`.mcpb`) holds no credential. Its one setting is the store's
+directory, which is passed as `LOFTY_PM_DATA_DIR`. Over stdio no keychain item is read at
+all.
 
 `lofty-pm mcp --http --port <PORT>` serves the same tools over HTTP for the user's own
 Cloudflare Worker, which reaches it through the user's own Cloudflare Tunnel (cli-common's

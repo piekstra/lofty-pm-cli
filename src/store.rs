@@ -104,6 +104,20 @@ impl Default for VerificationsFile {
 struct LastScanFile {
     schema: String,
     at: Option<DateTime<Utc>>,
+    #[serde(default)]
+    unread: u64,
+    #[serde(default)]
+    narrowed: bool,
+}
+
+/// What the last `scan` covered.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct LastScan {
+    pub at: DateTime<Utc>,
+    /// Emails it found and could not read. The next scan tries them again.
+    pub unread: u64,
+    /// `--query` or `--max` kept it from the whole mailbox query.
+    pub narrowed: bool,
 }
 
 impl Default for LastScanFile {
@@ -111,6 +125,8 @@ impl Default for LastScanFile {
         Self {
             schema: "scan/v1".into(),
             at: None,
+            unread: 0,
+            narrowed: false,
         }
     }
 }
@@ -140,15 +156,20 @@ fn read_json_or_default<T: for<'de> Deserialize<'de> + Default>(
 }
 
 fn resolve_data_dir() -> Result<PathBuf, CliError> {
-    if let Ok(p) = std::env::var("LOFTY_PM_DATA_DIR") {
-        if !p.is_empty() {
-            return Ok(PathBuf::from(p));
-        }
+    data_dir_from(|name| std::env::var(name).ok())
+}
+
+/// Where the data lives, given the environment. An empty variable counts as unset.
+/// Native Windows has `USERPROFILE` and normally no `HOME`.
+fn data_dir_from(env: impl Fn(&str) -> Option<String>) -> Result<PathBuf, CliError> {
+    let set = |name: &str| env(name).filter(|v| !v.is_empty());
+    if let Some(dir) = set("LOFTY_PM_DATA_DIR") {
+        return Ok(PathBuf::from(dir));
     }
-    let base = match std::env::var("XDG_DATA_HOME") {
-        Ok(x) if !x.is_empty() => PathBuf::from(x),
-        _ => {
-            let home = std::env::var("HOME").map_err(|_| {
+    let base = match set("XDG_DATA_HOME") {
+        Some(dir) => PathBuf::from(dir),
+        None => {
+            let home = set("HOME").or_else(|| set("USERPROFILE")).ok_or_else(|| {
                 CliError::Other("cannot locate home directory ($HOME unset)".into())
             })?;
             PathBuf::from(home).join(".local").join("share")
@@ -188,7 +209,7 @@ impl ReadStore {
         self.0.read_ledger()
     }
 
-    pub fn last_scan(&self) -> Result<Option<DateTime<Utc>>, CliError> {
+    pub fn last_scan(&self) -> Result<Option<LastScan>, CliError> {
         self.0.last_scan()
     }
 }
@@ -418,17 +439,23 @@ impl Store {
     // -- last scan ----------------------------------------------------------
 
     /// Record that a scan finished, so a reader can tell how fresh the store is.
-    pub fn record_scan(&self, at: DateTime<Utc>) -> Result<(), CliError> {
+    pub fn record_scan(&self, scan: LastScan) -> Result<(), CliError> {
         let file = LastScanFile {
-            at: Some(at),
+            at: Some(scan.at),
+            unread: scan.unread,
+            narrowed: scan.narrowed,
             ..Default::default()
         };
         write_json(&self.last_scan_path(), &file)
     }
 
-    pub fn last_scan(&self) -> Result<Option<DateTime<Utc>>, CliError> {
+    pub fn last_scan(&self) -> Result<Option<LastScan>, CliError> {
         let file: LastScanFile = read_json_or_default(&self.last_scan_path())?;
-        Ok(file.at)
+        Ok(file.at.map(|at| LastScan {
+            at,
+            unread: file.unread,
+            narrowed: file.narrowed,
+        }))
     }
 
     // -- diagnostics ----------------------------------------------------------
@@ -471,8 +498,13 @@ mod tests {
         let s = Store::open_at(tmp.path()).unwrap();
         assert_eq!(s.last_scan().unwrap(), None);
         let at = "2026-07-24T12:00:00Z".parse().unwrap();
-        s.record_scan(at).unwrap();
-        assert_eq!(s.last_scan().unwrap(), Some(at));
+        let scan = LastScan {
+            at,
+            unread: 2,
+            narrowed: true,
+        };
+        s.record_scan(scan).unwrap();
+        assert_eq!(s.last_scan().unwrap(), Some(scan));
     }
 
     #[test]
@@ -610,5 +642,52 @@ mod tests {
         result.unwrap();
         assert!(target.join("votes").is_dir());
         assert!(target.join("corpus").is_dir());
+    }
+
+    /// `scan.json` from before these fields existed reads as a whole scan.
+    #[test]
+    fn a_scan_file_without_coverage_reads_as_covering_everything() {
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::write(
+            tmp.path().join("scan.json"),
+            r#"{"schema":"scan/v1","at":"2030-03-02T06:00:00Z"}"#,
+        )
+        .unwrap();
+        let scan = ReadStore::at(tmp.path()).last_scan().unwrap().unwrap();
+        assert_eq!((scan.unread, scan.narrowed), (0, false));
+    }
+
+    #[test]
+    fn the_data_dir_falls_back_to_the_windows_home() {
+        let from = |vars: &[(&str, &str)]| {
+            let vars: Vec<(String, String)> = vars
+                .iter()
+                .map(|(k, v)| (k.to_string(), v.to_string()))
+                .collect();
+            data_dir_from(|name| vars.iter().find(|(k, _)| k == name).map(|(_, v)| v.clone()))
+        };
+        let under = |home: &str| {
+            PathBuf::from(home)
+                .join(".local")
+                .join("share")
+                .join("lofty-pm")
+        };
+        assert_eq!(
+            from(&[("USERPROFILE", "/profile")]).unwrap(),
+            under("/profile")
+        );
+        assert_eq!(
+            from(&[("HOME", ""), ("USERPROFILE", "/profile")]).unwrap(),
+            under("/profile")
+        );
+        assert_eq!(
+            from(&[("HOME", "/home"), ("USERPROFILE", "/profile")]).unwrap(),
+            under("/home")
+        );
+        assert_eq!(
+            from(&[("LOFTY_PM_DATA_DIR", "/picked"), ("HOME", "/home")]).unwrap(),
+            PathBuf::from("/picked")
+        );
+        assert!(from(&[]).is_err());
     }
 }

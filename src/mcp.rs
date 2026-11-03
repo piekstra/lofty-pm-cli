@@ -11,7 +11,10 @@
 //!
 //! A Vote Now link lets whoever holds it reach the ballot, so it is withheld: the
 //! record's `vote_link`, and any URL in the text of a proposal or an email. The raw
-//! email, message ids and the owner's stance are not served either.
+//! email, the owner's stance and the message ids a record lists are not served
+//! either. A vote's own id is: `scan` builds it from the id of the email that
+//! announced the vote, it is the name `lofty-pm` knows the vote by, and it opens
+//! nothing without the mailbox.
 //!
 //! An empty answer from a store nothing has ever filled would read as "no votes",
 //! so that is an error naming `lofty-pm scan`, and results carry `last_scan`.
@@ -31,7 +34,7 @@ use serde_json::Value;
 
 use crate::deadline::lapsed;
 use crate::model::{VoteRecord, VoteState};
-use crate::store::ReadStore;
+use crate::store::{CorpusItem, LastScan, ReadStore};
 
 /// How much of an email a digest row quotes, in characters.
 const EXCERPT: usize = 300;
@@ -61,7 +64,9 @@ fn server() -> Server {
          decision, or change anything. A vote is cast by the user on Lofty, from the link in \
          their email; no tool returns that link. Results come from the local store `lofty-pm \
          scan` fills from the user's email and do not reach Lofty, so an old last_scan means \
-         they may be behind. A vote past its deadline that nobody decided reads as missed.",
+         they may be behind, and unread_emails or scan_narrowed mean that scan did not cover \
+         all the mail: votes may be missing until the user runs `lofty-pm scan` again. A vote \
+         past its deadline that nobody decided reads as missed.",
     )
 }
 
@@ -72,10 +77,9 @@ pub struct PmTools {
     root: Option<PathBuf>,
 }
 
-fn store_error(command: &str, e: CliError) -> ToolError {
-    // The message names a file under the user's home directory, which has no
-    // business crossing to a model; the command names it in their terminal.
-    let _ = e;
+/// The error's message names a file under the user's home directory, which has no
+/// business crossing to a model; the command names it in their terminal.
+fn store_error(command: &str, _: CliError) -> ToolError {
     ToolError::other("the local lofty-pm data could not be read").with_fix(format!(
         "Ask the user to run `lofty-pm {command}` in a terminal, which names the file"
     ))
@@ -145,13 +149,38 @@ fn state_now(vote: &VoteRecord, now: DateTime<Utc>) -> VoteState {
     }
 }
 
-/// A result, and when the store last heard from the mailbox.
+fn is_zero(n: &u64) -> bool {
+    *n == 0
+}
+
+fn is_false(b: &bool) -> bool {
+    !*b
+}
+
+/// A result, and what the store last heard from the mailbox.
 #[derive(Debug, Serialize, JsonSchema)]
 struct Scanned<T: Serialize + JsonSchema> {
     /// When `lofty-pm scan` last finished. Null if no scan has recorded one.
     last_scan: Option<String>,
+    /// Emails that scan found and could not read, so it may have missed a vote.
+    #[serde(skip_serializing_if = "is_zero")]
+    unread_emails: u64,
+    /// That scan had a `--query` or `--max`, so it may have missed a vote.
+    #[serde(skip_serializing_if = "is_false")]
+    scan_narrowed: bool,
     #[serde(flatten)]
     page: Page<T>,
+}
+
+impl<T: Serialize + JsonSchema> Scanned<T> {
+    fn new(last: Option<LastScan>, page: Page<T>) -> Self {
+        Scanned {
+            last_scan: last.map(|scan| rfc3339(scan.at)),
+            unread_emails: last.map_or(0, |scan| scan.unread),
+            scan_narrowed: last.is_some_and(|scan| scan.narrowed),
+            page,
+        }
+    }
 }
 
 /// `loftypm_pending`'s arguments.
@@ -295,14 +324,12 @@ impl PmTools {
         }
     }
 
-    /// When the last scan ran, or an error if nothing has ever filled the store.
-    fn last_scan(store: &ReadStore) -> Result<Option<String>, ToolError> {
+    /// What the last scan covered, or an error if nothing has ever filled the store.
+    /// The other files are read only when no scan and no vote say otherwise.
+    fn last_scan(store: &ReadStore, votes: &[VoteRecord]) -> Result<Option<LastScan>, ToolError> {
         let last = store.last_scan().map_err(|e| store_error("scan", e))?;
         if last.is_none()
-            && store
-                .votes()
-                .map_err(|e| store_error("votes list", e))?
-                .is_empty()
+            && votes.is_empty()
             && store
                 .corpus()
                 .map_err(|e| store_error("digest", e))?
@@ -314,7 +341,7 @@ impl PmTools {
         {
             return Err(never_scanned());
         }
-        Ok(last.map(rfc3339))
+        Ok(last)
     }
 
     /// A vote id argument, as long as the store holds that vote.
@@ -333,21 +360,14 @@ impl PmTools {
 
     /// A property argument, as long as something in the store is about it: a
     /// mistyped name would otherwise read as nothing having happened there.
-    fn known_property(store: &ReadStore, query: Option<&str>) -> Result<(), ToolError> {
-        let Some(query) = query else {
-            return Ok(());
-        };
-        let in_votes = store
-            .votes()
-            .map_err(|e| store_error("votes list", e))?
-            .iter()
-            .any(|v| matches_property(&v.property, query));
-        let in_corpus = store
-            .corpus()
-            .map_err(|e| store_error("digest", e))?
-            .iter()
-            .any(|c| matches_property(&c.property, query));
-        if in_votes || in_corpus {
+    fn known_property(
+        votes: &[VoteRecord],
+        corpus: &[CorpusItem],
+        query: &str,
+    ) -> Result<(), ToolError> {
+        if votes.iter().any(|v| matches_property(&v.property, query))
+            || corpus.iter().any(|c| matches_property(&c.property, query))
+        {
             return Ok(());
         }
         Err(
@@ -360,12 +380,13 @@ impl PmTools {
         let args: PendingArgs = parse_args(args)?;
         let page = PageRequest::new(&args.list, &())?;
         let store = self.store()?;
-        let last_scan = Self::last_scan(&store)?;
+        let votes = store.votes().map_err(|e| store_error("votes list", e))?;
+        let last_scan = Self::last_scan(&store, &votes)?;
         let now = crate::clock::now();
 
         let mut missed = 0;
         let mut waiting: Vec<(Option<DateTime<Utc>>, PendingItem)> = Vec::new();
-        for vote in store.votes().map_err(|e| store_error("votes list", e))? {
+        for vote in votes {
             let waiting_on = match state_now(&vote, now) {
                 VoteState::NeedsManualParse | VoteState::NeedsAnalysis => "analysis",
                 VoteState::Recommended => "decision",
@@ -405,10 +426,7 @@ impl PmTools {
         let items = waiting.into_iter().map(|(_, item)| item).collect();
         ToolOutput::new(&PendingOut {
             missed,
-            scanned: Scanned {
-                last_scan,
-                page: page.page(items, "limit")?,
-            },
+            scanned: Scanned::new(last_scan, page.page(items, "limit")?),
         })
     }
 
@@ -419,11 +437,13 @@ impl PmTools {
         let page = PageRequest::new(&args.list, &(args.state, property, wanted_vote))?;
         let detailed = args.list.format().is_detailed();
         let store = self.store()?;
-        let last_scan = Self::last_scan(&store)?;
-        Self::known_property(&store, property)?;
-        let now = crate::clock::now();
-
         let votes = store.votes().map_err(|e| store_error("votes list", e))?;
+        let last_scan = Self::last_scan(&store, &votes)?;
+        if let Some(query) = property {
+            let corpus = store.corpus().map_err(|e| store_error("digest", e))?;
+            Self::known_property(&votes, &corpus, query)?;
+        }
+        let now = crate::clock::now();
         Self::known_vote(&votes, wanted_vote)?;
         let mut items = Vec::new();
         for vote in &votes {
@@ -454,10 +474,10 @@ impl PmTools {
                 detected: detailed.then(|| day(vote.created_at)),
             });
         }
-        ToolOutput::new(&Scanned {
+        ToolOutput::new(&Scanned::new(
             last_scan,
-            page: page.page(items, "state or property")?,
-        })
+            page.page(items, "state or property")?,
+        ))
     }
 
     fn digest(&self, args: Value) -> Result<ToolOutput, ToolError> {
@@ -472,10 +492,13 @@ impl PmTools {
             EXCERPT
         };
         let store = self.store()?;
-        let last_scan = Self::last_scan(&store)?;
-        Self::known_property(&store, property)?;
-
+        let votes = store.votes().map_err(|e| store_error("votes list", e))?;
+        let last_scan = Self::last_scan(&store, &votes)?;
         let mut filed = store.corpus().map_err(|e| store_error("digest", e))?;
+        if let Some(query) = property {
+            Self::known_property(&votes, &filed, query)?;
+        }
+
         filed.retain(|item| {
             cutoff.is_none_or(|c| item.date >= c)
                 && property.is_none_or(|p| matches_property(&item.property, p))
@@ -491,10 +514,10 @@ impl PmTools {
                 excerpt: quoted(&item.body, length),
             })
             .collect();
-        ToolOutput::new(&Scanned {
+        ToolOutput::new(&Scanned::new(
             last_scan,
-            page: page.page(items, "since or property")?,
-        })
+            page.page(items, "since or property")?,
+        ))
     }
 
     fn ledger(&self, args: Value) -> Result<ToolOutput, ToolError> {
@@ -503,8 +526,8 @@ impl PmTools {
         let page = PageRequest::new(&args.list, &wanted_vote)?;
         let detailed = args.list.format().is_detailed();
         let store = self.store()?;
-        let last_scan = Self::last_scan(&store)?;
         let votes = store.votes().map_err(|e| store_error("votes list", e))?;
+        let last_scan = Self::last_scan(&store, &votes)?;
         Self::known_vote(&votes, wanted_vote)?;
 
         let mut entries = store.ledger().map_err(|e| store_error("ledger", e))?;
@@ -526,10 +549,7 @@ impl PmTools {
                     .map(|d| quoted(&d, DETAILED_EXCERPT)),
             })
             .collect();
-        ToolOutput::new(&Scanned {
-            last_scan,
-            page: page.page(items, "vote")?,
-        })
+        ToolOutput::new(&Scanned::new(last_scan, page.page(items, "vote")?))
     }
 }
 

@@ -94,7 +94,8 @@ at-your-own-risk opt-in, not a default.
 `lofty-pm scan` fills, and reach neither Lofty nor your mailbox. Nothing can cast a vote,
 record a recommendation or a decision, or change anything. A vote is cast by you, from
 the link in your email; no tool returns that link, or any other URL in a proposal or an
-email. Results carry `last_scan`, so run `lofty-pm scan` to pick up new mail.
+email. Results carry `last_scan`, and say when that scan could not read some mail or was
+narrowed, so run `lofty-pm scan` to pick up new mail.
 
 **Claude Code.** After `lofty-pm scan`:
 
@@ -108,9 +109,10 @@ command.
 
 **Claude Desktop.** Download `lofty-pm-<version>.mcpb` from the
 [latest release](https://github.com/piekstra/lofty-pm-cli/releases/latest) and open it.
-It asks for nothing and holds no credential: the bundled `lofty-pm` reads the store your
-installed `lofty-pm` keeps at `~/.local/share/lofty-pm`. An extension does not see
-`$LOFTY_PM_DATA_DIR`, so a store kept elsewhere needs the Claude Code route, which does.
+It holds no credential: the bundled `lofty-pm` reads the store your installed `lofty-pm`
+keeps. Its one setting is that directory, `~/.local/share/lofty-pm` by default. A desktop
+app does not see what your shell sets, so change it if you set `LOFTY_PM_DATA_DIR` or
+`XDG_DATA_HOME` there.
 
 Any other MCP client that launches a local server can run `lofty-pm mcp`.
 
