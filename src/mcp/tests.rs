@@ -368,6 +368,144 @@ fn the_ledger_lists_newest_first_and_narrows_to_a_vote() {
     );
 }
 
+/// A scan finds a vote while a client is between pages.
+#[test]
+fn a_vote_found_between_pages_repeats_nothing_and_skips_nothing() {
+    let (tools, dir) = over_fixture();
+    let first = ok(&tools, "loftypm_votes", json!({"limit": 2}));
+    let mut seen: Vec<String> = ids(&first).iter().map(|i| i.to_string()).collect();
+    let all = ok(&tools, "loftypm_votes", json!({"limit": 200}));
+    let mut every: Vec<String> = ids(&all).iter().map(|i| i.to_string()).collect();
+
+    let votes = dir.path().join("votes");
+    let found = std::fs::read_to_string(votes.join("v-analyze.json")).unwrap();
+    let mut found: Value = serde_json::from_str(&found).unwrap();
+    found["id"] = json!("v-new");
+    found["created_at"] = json!("2030-06-01T00:00:00Z");
+    std::fs::write(votes.join("v-new.json"), found.to_string()).unwrap();
+
+    let mut cursor = first["next_cursor"].clone();
+    while cursor.is_string() {
+        let page = ok(
+            &tools,
+            "loftypm_votes",
+            json!({"limit": 2, "cursor": cursor}),
+        );
+        seen.extend(ids(&page).iter().map(|i| i.to_string()));
+        cursor = page["next_cursor"].clone();
+    }
+    seen.sort();
+    every.sort();
+    assert_eq!(seen, every);
+}
+
+/// A write lands while a client is between pages. Entries of one second keep the file's order.
+#[test]
+fn a_ledger_entry_written_between_pages_repeats_nothing_and_skips_nothing() {
+    let (tools, dir) = over_fixture();
+    let path = dir.path().join("ledger.jsonl");
+    let entry = |event: &str| {
+        format!(
+            "{{\"schema\": \"ledger-entry/v1\", \"at\": \"2030-02-01T00:00:00Z\", \"vote_id\": null,              \"actor\": \"scan\", \"event\": \"{event}\", \"from\": null, \"to\": null,              \"detail\": null}}\n"
+        )
+    };
+    let original = std::fs::read_to_string(&path).unwrap();
+    std::fs::write(
+        &path,
+        format!("{original}{}{}", entry("first"), entry("second")),
+    )
+    .unwrap();
+    let events = |page: &Value| -> Vec<String> {
+        page["items"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|i| i["event"].as_str().unwrap().to_string())
+            .collect()
+    };
+    let first = ok(&tools, "loftypm_ledger", json!({"limit": 2}));
+    assert_eq!(events(&first), ["second", "first"]);
+    let mut seen = first["returned"].as_u64().unwrap();
+
+    let written = std::fs::read_to_string(&path).unwrap();
+    let mut grown = written;
+    let later = entry("later").replace("2030-02-01", "2030-03-01");
+    grown.push_str(&later);
+    std::fs::write(&path, grown).unwrap();
+
+    let mut cursor = first["next_cursor"].clone();
+    let mut rest = Vec::new();
+    while cursor.is_string() {
+        let page = ok(
+            &tools,
+            "loftypm_ledger",
+            json!({"limit": 2, "cursor": cursor}),
+        );
+        seen += page["returned"].as_u64().unwrap();
+        rest.extend(events(&page));
+        cursor = page["next_cursor"].clone();
+    }
+    assert_eq!(
+        seen, 6,
+        "the fixture's 4 and the 2 written before the first page"
+    );
+    assert!(
+        !rest
+            .iter()
+            .any(|e| e == "later" || e == "first" || e == "second"),
+        "{rest:?}"
+    );
+}
+
+/// A deadline-ordered list runs soonest first, those with none last, and a cursor keeps its place.
+#[test]
+fn a_pending_vote_found_between_pages_repeats_nothing_and_skips_nothing() {
+    let (tools, dir) = over_fixture();
+    let first = ok(&tools, "loftypm_pending", json!({"limit": 1}));
+    let mut seen: Vec<String> = ids(&first).iter().map(|i| i.to_string()).collect();
+    let all = ok(&tools, "loftypm_pending", json!({"limit": 200}));
+    let mut every: Vec<String> = ids(&all).iter().map(|i| i.to_string()).collect();
+
+    let votes = dir.path().join("votes");
+    let found = std::fs::read_to_string(votes.join("v-analyze.json")).unwrap();
+    let mut found: Value = serde_json::from_str(&found).unwrap();
+    found["id"] = json!("v-sooner");
+    found["deadline"] = json!("2030-12-01T00:00:00Z");
+    std::fs::write(votes.join("v-sooner.json"), found.to_string()).unwrap();
+
+    let mut cursor = first["next_cursor"].clone();
+    while cursor.is_string() {
+        let page = ok(
+            &tools,
+            "loftypm_pending",
+            json!({"limit": 1, "cursor": cursor}),
+        );
+        seen.extend(ids(&page).iter().map(|i| i.to_string()));
+        cursor = page["next_cursor"].clone();
+    }
+    seen.sort();
+    every.sort();
+    assert_eq!(seen, every);
+}
+
+/// A cursor issued before this version holds a count, and is read as one.
+#[test]
+fn an_earlier_versions_cursor_still_continues_as_the_count_it_holds() {
+    let (tools, _dir) = over_fixture();
+    let list: ListArgs = serde_json::from_value(json!({"limit": 1})).unwrap();
+    let page = pk_cli_mcp::PageRequest::new(&list, &None::<&str>)
+        .unwrap()
+        .page(vec![0, 1, 2], "anything")
+        .unwrap();
+    let cursor = serde_json::to_value(&page).unwrap()["next_cursor"].clone();
+    let got = ok(
+        &tools,
+        "loftypm_ledger",
+        json!({"limit": 200, "cursor": cursor}),
+    );
+    assert_eq!(got["returned"], 3, "the fixture holds 4");
+}
+
 #[test]
 fn a_cursor_continues_its_own_query() {
     let (tools, _dir) = over_fixture();

@@ -12,7 +12,7 @@ the CLI supplies deterministic plumbing (scan/parse/state/deadlines/
 reminders), the agent supplies judgment (reading proposals, weighing them
 against the owner's stance, conversation). Built on the shared
 [`cli-common`](https://github.com/piekstra/cli-common) `pk-cli-*` crates
-(core, config, auth, self-update, MCP), pinned to **v0.22.0**.
+(core, config, auth, self-update, MCP), pinned to **v0.27.0**.
 
 This repo is public: no personal data anywhere — no account emails, no real
 portfolio details, no real property addresses — in code, docs, fixtures, or git

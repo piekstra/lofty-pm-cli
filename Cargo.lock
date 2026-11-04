@@ -1252,7 +1252,7 @@ checksum = "11d3d7f243d5c5a8b9bb5d6dd2b1602c0cb0b9db1621bafc7ed66e35ff9fe092"
 
 [[package]]
 name = "lofty-pm-cli"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "assert_cmd",
  "chrono",
@@ -1494,8 +1494,8 @@ dependencies = [
 
 [[package]]
 name = "pk-cli-auth"
-version = "0.22.0"
-source = "git+https://github.com/piekstra/cli-common?tag=v0.22.0#54171ed891c4649a134129de13f72d6905bb5ac2"
+version = "0.27.0"
+source = "git+https://github.com/piekstra/cli-common?tag=v0.27.0#40cee7a5332184348d9292c21b0ef582a3f1d292"
 dependencies = [
  "clap",
  "pk-cli-core",
@@ -1506,8 +1506,8 @@ dependencies = [
 
 [[package]]
 name = "pk-cli-config"
-version = "0.22.0"
-source = "git+https://github.com/piekstra/cli-common?tag=v0.22.0#54171ed891c4649a134129de13f72d6905bb5ac2"
+version = "0.27.0"
+source = "git+https://github.com/piekstra/cli-common?tag=v0.27.0#40cee7a5332184348d9292c21b0ef582a3f1d292"
 dependencies = [
  "pk-cli-core",
  "serde",
@@ -1516,8 +1516,8 @@ dependencies = [
 
 [[package]]
 name = "pk-cli-core"
-version = "0.22.0"
-source = "git+https://github.com/piekstra/cli-common?tag=v0.22.0#54171ed891c4649a134129de13f72d6905bb5ac2"
+version = "0.27.0"
+source = "git+https://github.com/piekstra/cli-common?tag=v0.27.0#40cee7a5332184348d9292c21b0ef582a3f1d292"
 dependencies = [
  "clap",
  "libc",
@@ -1527,8 +1527,8 @@ dependencies = [
 
 [[package]]
 name = "pk-cli-mcp"
-version = "0.22.0"
-source = "git+https://github.com/piekstra/cli-common?tag=v0.22.0#54171ed891c4649a134129de13f72d6905bb5ac2"
+version = "0.27.0"
+source = "git+https://github.com/piekstra/cli-common?tag=v0.27.0#40cee7a5332184348d9292c21b0ef582a3f1d292"
 dependencies = [
  "bytes",
  "clap",
@@ -1548,8 +1548,8 @@ dependencies = [
 
 [[package]]
 name = "pk-cli-secrets"
-version = "0.22.0"
-source = "git+https://github.com/piekstra/cli-common?tag=v0.22.0#54171ed891c4649a134129de13f72d6905bb5ac2"
+version = "0.27.0"
+source = "git+https://github.com/piekstra/cli-common?tag=v0.27.0#40cee7a5332184348d9292c21b0ef582a3f1d292"
 dependencies = [
  "clap",
  "keyring",
@@ -1562,8 +1562,8 @@ dependencies = [
 
 [[package]]
 name = "pk-cli-selfupdate"
-version = "0.22.0"
-source = "git+https://github.com/piekstra/cli-common?tag=v0.22.0#54171ed891c4649a134129de13f72d6905bb5ac2"
+version = "0.27.0"
+source = "git+https://github.com/piekstra/cli-common?tag=v0.27.0#40cee7a5332184348d9292c21b0ef582a3f1d292"
 dependencies = [
  "clap",
  "flate2",
