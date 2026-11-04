@@ -488,6 +488,34 @@ fn a_pending_vote_found_between_pages_repeats_nothing_and_skips_nothing() {
     assert_eq!(seen, every);
 }
 
+/// A deadline is the one sort value that can change, so this pins what a walk does when one does:
+/// the row moves behind the cursor, and a read from the start finds it.
+#[test]
+fn a_deadline_amended_between_pages_can_be_missed_until_a_read_from_the_start() {
+    let (tools, dir) = over_fixture();
+    let all = ok(&tools, "loftypm_pending", json!({"limit": 200}));
+    let every: Vec<String> = ids(&all).iter().map(|i| i.to_string()).collect();
+    assert!(every.len() >= 2, "{every:?}");
+    let first = ok(&tools, "loftypm_pending", json!({"limit": 1}));
+    assert_eq!(ids(&first)[0], every[0]);
+    let cursor = first["next_cursor"].clone();
+
+    let last = every.last().unwrap();
+    let path = dir.path().join("votes").join(format!("{last}.json"));
+    let mut vote: Value = serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+    vote["deadline"] = json!("2030-12-01T00:00:00Z");
+    std::fs::write(&path, vote.to_string()).unwrap();
+
+    let rest = ok(
+        &tools,
+        "loftypm_pending",
+        json!({"limit": 200, "cursor": cursor}),
+    );
+    assert!(!ids(&rest).contains(&last.as_str()), "{rest}");
+    let again = ok(&tools, "loftypm_pending", json!({"limit": 200}));
+    assert_eq!(ids(&again)[0], last.as_str());
+}
+
 /// A cursor issued before this version holds a count, and is read as one.
 #[test]
 fn an_earlier_versions_cursor_still_continues_as_the_count_it_holds() {

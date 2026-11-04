@@ -8,7 +8,8 @@ All notable changes to `lofty-pm` are documented here. Newest first. The project
 - `loftypm_pending`, `loftypm_votes`, `loftypm_digest` and `loftypm_ledger` page by position, so a row
   that a scan adds between pages repeats nothing and skips nothing. Votes and emails of the same day
   now run in a fixed order of their own. A cursor from an earlier version still works, as the count
-  of rows it holds.
+  of rows it holds. One exception: a vote's deadline can be amended, which moves it within
+  `loftypm_pending`, so within one walk it can repeat or be missed until a read from the start.
 - cli-common v0.27.0, up from v0.22.0.
 
 ## 0.2.0 — 2026-11-03

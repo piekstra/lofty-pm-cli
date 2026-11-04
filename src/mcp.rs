@@ -408,7 +408,9 @@ impl PmTools {
                 }
                 _ => continue,
             };
-            // Soonest deadline first, and those with none after them: `~` sorts after a digit.
+            // Soonest deadline first, and those with none after them: `~` sorts after a digit. A
+            // deadline can be amended, which moves the row: within one walk it can repeat or be
+            // missed, and reading from the start again corrects that. The order is worth more here.
             let soonest = vote.deadline.map_or_else(|| "~".to_string(), rfc3339);
             waiting.push((
                 PositionKey::new(soonest, &vote.id),
