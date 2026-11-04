@@ -244,4 +244,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: v${{ needs.versions.outputs.version }}
-        run: gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false --latest
+        # --target: a later push reuses a failed run's draft, which still targets that
+        # run's commit, and publishing creates the tag at the draft's target.
+        run: gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --draft=false --latest
