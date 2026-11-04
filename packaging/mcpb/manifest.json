@@ -2,7 +2,7 @@
   "manifest_version": "0.3",
   "name": "lofty-pm",
   "display_name": "Lofty governance (lofty-pm)",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Read-only access to the Lofty governance votes and property updates that lofty-pm has filed from your email, through the open-source lofty-pm CLI.",
   "long_description": "Ask Claude about your Lofty properties' governance: which votes wait on you and how long you have, what a proposal says, how past votes went, what the update emails said and who decided what. Four read-only tools, loftypm_pending, loftypm_votes, loftypm_digest and loftypm_ledger, over the local store `lofty-pm scan` fills from your email. Nothing can cast a vote, record a recommendation or a decision, or change anything, and no tool reaches Lofty or your mailbox. A vote is cast by you, from the link in your email; no tool returns that link. The extension holds no credential: first install the lofty-pm CLI and run `lofty-pm scan`, and run it again to pick up new mail. Its one setting is the lofty-pm data directory, `~/.local/share/lofty-pm` by default; change it only if you set LOFTY_PM_DATA_DIR or XDG_DATA_HOME for the command line. What the tools return (property names, vote subjects and proposals, recommendations, your decisions, email excerpts) goes to Claude as part of your conversation. Unofficial; not affiliated with Lofty.",
   "author": {

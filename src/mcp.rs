@@ -25,7 +25,8 @@ use std::sync::OnceLock;
 use chrono::{DateTime, NaiveDate, SecondsFormat, Utc};
 use pk_cli_core::CliError;
 use pk_cli_mcp::{
-    parse_args, ListArgs, Page, PageRequest, Server, ToolDef, ToolError, ToolOutput, Toolset,
+    parse_args, ListArgs, Order, Page, PositionKey, PositionRequest, Server, ToolDef, ToolError,
+    ToolOutput, Toolset,
 };
 use regex::Regex;
 use schemars::JsonSchema;
@@ -384,14 +385,14 @@ impl PmTools {
 
     fn pending(&self, args: Value) -> Result<ToolOutput, ToolError> {
         let args: PendingArgs = parse_args(args)?;
-        let page = PageRequest::new(&args.list, &())?;
+        let page = PositionRequest::new(&args.list, &())?;
         let store = self.store()?;
         let votes = store.votes().map_err(|e| store_error("votes list", e))?;
         let last_scan = Self::last_scan(&store, &votes)?;
         let now = crate::clock::now();
 
         let mut missed = 0;
-        let mut waiting: Vec<(Option<DateTime<Utc>>, PendingItem)> = Vec::new();
+        let mut waiting: Vec<(PositionKey, PendingItem)> = Vec::new();
         for vote in votes {
             let waiting_on = match state_now(&vote, now) {
                 VoteState::NeedsManualParse | VoteState::NeedsAnalysis => "analysis",
@@ -407,8 +408,12 @@ impl PmTools {
                 }
                 _ => continue,
             };
+            // Soonest deadline first, and those with none after them: `~` sorts after a digit. A
+            // deadline can be amended, which moves the row: within one walk it can repeat or be
+            // missed, and reading from the start again corrects that. The order is worth more here.
+            let soonest = vote.deadline.map_or_else(|| "~".to_string(), rfc3339);
             waiting.push((
-                vote.deadline,
+                PositionKey::new(soonest, &vote.id),
                 PendingItem {
                     id: vote.id.clone(),
                     property: vote.property.clone(),
@@ -427,12 +432,9 @@ impl PmTools {
                 },
             ));
         }
-        // Soonest deadline first, and those with none after them.
-        waiting.sort_by_key(|(deadline, _)| (deadline.is_none(), *deadline));
-        let items = waiting.into_iter().map(|(_, item)| item).collect();
         ToolOutput::new(&PendingOut {
             missed,
-            scanned: Scanned::new(last_scan, page.page(items, "limit")?),
+            scanned: Scanned::new(last_scan, page.page(waiting, Order::Ascending, "limit")?),
         })
     }
 
@@ -440,7 +442,7 @@ impl PmTools {
         let args: VoteArgs = parse_args(args)?;
         let property = trimmed(args.property.as_deref());
         let wanted_vote = trimmed(args.vote.as_deref());
-        let page = PageRequest::new(&args.list, &(args.state, property, wanted_vote))?;
+        let page = PositionRequest::new(&args.list, &(args.state, property, wanted_vote))?;
         let detailed = args.list.format().is_detailed();
         let store = self.store()?;
         let votes = store.votes().map_err(|e| store_error("votes list", e))?;
@@ -461,28 +463,33 @@ impl PmTools {
                 continue;
             }
             let recommendation = vote.recommendation.as_ref();
-            items.push(VoteItem {
-                id: vote.id.clone(),
-                property: vote.property.clone(),
-                subject: quoted(&vote.subject, EXCERPT),
-                state: wire(&state),
-                deadline: vote.deadline.map(rfc3339),
-                recommended: recommendation.map(|r| quoted(&r.position, EXCERPT)),
-                decided: decided(vote),
-                outcome: vote.outcome.as_deref().map(|o| quoted(o, EXCERPT)),
-                proposal: detailed.then(|| quoted(&vote.proposal, DETAILED_EXCERPT)),
-                options: detailed.then(|| vote.options.iter().map(|o| without_links(o)).collect()),
-                tier: vote.tier.filter(|_| detailed).map(|t| wire(&t)),
-                confidence: recommendation.filter(|_| detailed).map(|r| r.confidence),
-                reasoning: recommendation
-                    .filter(|_| detailed)
-                    .map(|r| quoted(&r.reasoning, DETAILED_EXCERPT)),
-                detected: detailed.then(|| day(vote.created_at)),
-            });
+            let key = PositionKey::new(day(vote.created_at), &vote.id);
+            items.push((
+                key,
+                VoteItem {
+                    id: vote.id.clone(),
+                    property: vote.property.clone(),
+                    subject: quoted(&vote.subject, EXCERPT),
+                    state: wire(&state),
+                    deadline: vote.deadline.map(rfc3339),
+                    recommended: recommendation.map(|r| quoted(&r.position, EXCERPT)),
+                    decided: decided(vote),
+                    outcome: vote.outcome.as_deref().map(|o| quoted(o, EXCERPT)),
+                    proposal: detailed.then(|| quoted(&vote.proposal, DETAILED_EXCERPT)),
+                    options: detailed
+                        .then(|| vote.options.iter().map(|o| without_links(o)).collect()),
+                    tier: vote.tier.filter(|_| detailed).map(|t| wire(&t)),
+                    confidence: recommendation.filter(|_| detailed).map(|r| r.confidence),
+                    reasoning: recommendation
+                        .filter(|_| detailed)
+                        .map(|r| quoted(&r.reasoning, DETAILED_EXCERPT)),
+                    detected: detailed.then(|| day(vote.created_at)),
+                },
+            ));
         }
         ToolOutput::new(&Scanned::new(
             last_scan,
-            page.page(items, "state or property")?,
+            page.page(items, Order::Descending, "state or property")?,
         ))
     }
 
@@ -491,7 +498,7 @@ impl PmTools {
         let since = trimmed(args.since.as_deref());
         let property = trimmed(args.property.as_deref());
         let cutoff = since.map(parse_since).transpose()?;
-        let page = PageRequest::new(&args.list, &(since, property))?;
+        let page = PositionRequest::new(&args.list, &(since, property))?;
         let length = if args.list.format().is_detailed() {
             DETAILED_EXCERPT
         } else {
@@ -509,53 +516,68 @@ impl PmTools {
             cutoff.is_none_or(|c| item.date >= c)
                 && property.is_none_or(|p| matches_property(&item.property, p))
         });
-        filed.sort_by(|a, b| b.date.cmp(&a.date).then_with(|| a.msg_id.cmp(&b.msg_id)));
         let items = filed
             .into_iter()
-            .map(|item| DigestItem {
-                date: day(item.date),
-                property: item.property,
-                kind: item.kind,
-                subject: quoted(&item.subject, EXCERPT),
-                excerpt: quoted(&item.body, length),
+            .map(|item| {
+                let date = day(item.date);
+                let key = PositionKey::new(date.as_str(), &item.msg_id);
+                (
+                    key,
+                    DigestItem {
+                        date,
+                        property: item.property,
+                        kind: item.kind,
+                        subject: quoted(&item.subject, EXCERPT),
+                        excerpt: quoted(&item.body, length),
+                    },
+                )
             })
             .collect();
         ToolOutput::new(&Scanned::new(
             last_scan,
-            page.page(items, "since or property")?,
+            page.page(items, Order::Descending, "since or property")?,
         ))
     }
 
     fn ledger(&self, args: Value) -> Result<ToolOutput, ToolError> {
         let args: LedgerArgs = parse_args(args)?;
         let wanted_vote = trimmed(args.vote.as_deref());
-        let page = PageRequest::new(&args.list, &wanted_vote)?;
+        let page = PositionRequest::new(&args.list, &wanted_vote)?;
         let detailed = args.list.format().is_detailed();
         let store = self.store()?;
         let votes = store.votes().map_err(|e| store_error("votes list", e))?;
         let last_scan = Self::last_scan(&store, &votes)?;
         Self::known_vote(&votes, wanted_vote)?;
 
-        let mut entries = store.ledger().map_err(|e| store_error("ledger", e))?;
-        entries.retain(|e| wanted_vote.is_none_or(|id| e.vote_id.as_deref() == Some(id)));
-        // The file is oldest first; the newest is what a caller wants first.
-        entries.reverse();
+        let entries = store.ledger().map_err(|e| store_error("ledger", e))?;
         let items = entries
             .into_iter()
-            .map(|e| LedgerItem {
-                at: rfc3339(e.at),
-                event: e.event,
-                vote: e.vote_id,
-                to: e.to.map(|s| wire(&s)),
-                actor: detailed.then(|| wire(&e.actor)),
-                from: e.from.filter(|_| detailed).map(|s| wire(&s)),
-                detail: e
-                    .detail
-                    .filter(|_| detailed)
-                    .map(|d| quoted(&d, DETAILED_EXCERPT)),
+            .enumerate()
+            .filter(|(_, e)| wanted_vote.is_none_or(|id| e.vote_id.as_deref() == Some(id)))
+            .map(|(line, e)| {
+                // The file is append-only and oldest first, so its line keeps an audit trail's
+                // order within a second, and the newest is what a caller wants first.
+                let at = rfc3339(e.at);
+                let key = PositionKey::new(format!("{at}#{line:08}"), "");
+                let item = LedgerItem {
+                    at,
+                    event: e.event,
+                    vote: e.vote_id,
+                    to: e.to.map(|s| wire(&s)),
+                    actor: detailed.then(|| wire(&e.actor)),
+                    from: e.from.filter(|_| detailed).map(|s| wire(&s)),
+                    detail: e
+                        .detail
+                        .filter(|_| detailed)
+                        .map(|d| quoted(&d, DETAILED_EXCERPT)),
+                };
+                (key, item)
             })
             .collect();
-        ToolOutput::new(&Scanned::new(last_scan, page.page(items, "vote")?))
+        ToolOutput::new(&Scanned::new(
+            last_scan,
+            page.page(items, Order::Descending, "vote")?,
+        ))
     }
 }
 
@@ -586,7 +608,7 @@ impl Toolset for PmTools {
             ToolDef::read(
                 "loftypm_votes",
                 "Tracked Lofty votes",
-                "Lists every tracked Lofty governance vote, newest first, or one by id. Use it to \
+                "Lists every tracked Lofty governance vote, newest day first, or one by id. Use it to \
                  see what a proposal says or how a vote went. Items carry id, property, subject, \
                  state, deadline, recommended, decided and outcome (detailed adds proposal, \
                  options, tier, confidence, reasoning and detected). It gives no voting link.",
@@ -597,7 +619,7 @@ impl Toolset for PmTools {
                 "loftypm_digest",
                 "Lofty property updates",
                 "Lists the update and result emails filed for the user's Lofty properties, newest \
-                 first. Use it for what has happened at a property. Items carry date, property, \
+                 day first. Use it for what has happened at a property. Items carry date, property, \
                  kind, subject and an excerpt, longer when detailed. Narrow with since or property.",
             )
             .input::<DigestArgs>()
