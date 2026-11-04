@@ -8,10 +8,10 @@ name: release
 # (about 10x Linux) and the Windows runner (about 2x) are billed once per release
 # instead of once per commit. One job per OS: Linux, Windows, and ONE macOS
 # job (Apple Silicon, which cross-compiles the Intel target; the macOS SDK is
-# universal). Build jobs are independent (fail-fast: false) and each attaches
-# its own tarballs, so a slow or dead macOS queue never blocks the Linux
-# assets. The `.mcpb` (Claude Desktop extension) needs all three, so it is
-# packed last, on Linux.
+# universal). Build jobs are independent (fail-fast: false), so a slow or dead
+# macOS queue never stops the Linux and Windows builds; only `publish` attaches,
+# and re-running the failed jobs finishes the draft it leaves. The `.mcpb`
+# (Claude Desktop extension) needs all three, so it is packed last, on Linux.
 #
 # Only `publish`, which never runs on a pull request and runs no third-party
 # build code, can write to the repository; building and packing (cargo, npx)
@@ -246,4 +246,9 @@ jobs:
           TAG: v${{ needs.versions.outputs.version }}
         # --target: a later push reuses a failed run's draft, which still targets that
         # run's commit, and publishing creates the tag at the draft's target.
-        run: gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --draft=false --latest
+        run: |
+          # A re-run of an older tag must not move Latest back to it.
+          current=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName 2>/dev/null || true)
+          newest=$(printf '%s\n%s\n' "$current" "$TAG" | sort -V | tail -1)
+          latest=false; [ "$newest" = "$TAG" ] && latest=true
+          gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --draft=false --latest="$latest"
