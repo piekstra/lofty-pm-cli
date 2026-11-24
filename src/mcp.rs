@@ -22,7 +22,6 @@
 use std::path::PathBuf;
 use std::sync::OnceLock;
 
-use chrono::{DateTime, NaiveDate, SecondsFormat, Utc};
 use pk_cli_core::CliError;
 use pk_cli_mcp::{
     parse_args, ListArgs, Order, Page, PositionKey, PositionRequest, Server, ToolDef, ToolError,
@@ -33,6 +32,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+use crate::clock::UtcTime;
 use crate::deadline::lapsed;
 use crate::model::{VoteRecord, VoteState};
 use crate::store::{CorpusItem, LastScan, ReadStore};
@@ -94,12 +94,12 @@ fn never_scanned() -> ToolError {
         .with_fix("Ask the user to run `lofty-pm scan` in a terminal, then call the tool again")
 }
 
-fn rfc3339(at: DateTime<Utc>) -> String {
-    at.to_rfc3339_opts(SecondsFormat::Secs, true)
+fn rfc3339(at: UtcTime) -> String {
+    at.rfc3339_seconds()
 }
 
-fn day(at: DateTime<Utc>) -> String {
-    at.format("%Y-%m-%d").to_string()
+fn day(at: UtcTime) -> String {
+    at.day()
 }
 
 fn wire<T: Serialize>(value: &T) -> String {
@@ -133,11 +133,9 @@ fn trimmed(value: Option<&str>) -> Option<&str> {
     value.map(str::trim).filter(|v| !v.is_empty())
 }
 
-fn parse_since(value: &str) -> Result<DateTime<Utc>, ToolError> {
-    let date = NaiveDate::parse_from_str(value, "%Y-%m-%d")
-        .map_err(|_| ToolError::usage(format!("since must be YYYY-MM-DD, got `{value}`")))?;
-    let midnight = date.and_hms_opt(0, 0, 0).expect("midnight exists");
-    Ok(DateTime::<Utc>::from_naive_utc_and_offset(midnight, Utc))
+fn parse_since(value: &str) -> Result<UtcTime, ToolError> {
+    UtcTime::midnight(value)
+        .map_err(|_| ToolError::usage(format!("since must be YYYY-MM-DD, got `{value}`")))
 }
 
 fn matches_property(property: &str, query: &str) -> bool {
@@ -145,7 +143,7 @@ fn matches_property(property: &str, query: &str) -> bool {
 }
 
 /// A vote's state as of `now`: what the next sweep would make it.
-fn state_now(vote: &VoteRecord, now: DateTime<Utc>) -> VoteState {
+fn state_now(vote: &VoteRecord, now: UtcTime) -> VoteState {
     if lapsed(vote, now) {
         VoteState::Missed
     } else {
@@ -423,7 +421,7 @@ impl PmTools {
                     deadline: vote.deadline.map(rfc3339),
                     hours_left: vote
                         .deadline
-                        .map(|d| ((d - now).num_seconds() as f64 / 360.0).round() / 10.0),
+                        .map(|d| (d.seconds_since(now) as f64 / 360.0).round() / 10.0),
                     recommended: vote
                         .recommendation
                         .as_ref()

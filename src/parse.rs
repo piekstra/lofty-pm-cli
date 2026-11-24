@@ -21,9 +21,10 @@
 
 use std::sync::LazyLock;
 
-use chrono::{DateTime, NaiveDateTime, TimeZone, Utc};
+use jiff::{civil, tz};
 use regex::Regex;
 
+use crate::clock::UtcTime;
 use crate::gmail::RawEmail;
 use crate::model::Tier;
 
@@ -44,7 +45,7 @@ pub struct VoteEmail {
     pub property_name: String,
     pub proposal: String,
     pub options: Vec<String>,
-    pub deadline: Option<DateTime<Utc>>,
+    pub deadline: Option<UtcTime>,
     pub vote_link: Option<String>,
 }
 
@@ -329,29 +330,29 @@ fn extract_options(body: &str) -> Vec<String> {
 /// this precisely at all — the only mention is prose like "sent to all
 /// owners on Friday, July 31st once the voting period ends", with no
 /// year and no time of day. That can't be turned into a trustworthy
-/// `DateTime<Utc>` without guessing (wrong reminders are worse than no
+/// `UtcTime` without guessing (wrong reminders are worse than no
 /// reminders), so for that shape this intentionally returns `None`
 /// rather than fabricate a time — consistent with this module's
 /// documented "missing deadline is an expected, safely-handled outcome"
 /// design. `votes amend --deadline` lets a human/agent set one by hand
 /// once they've read the actual voting-period-end date off Lofty's site.
-fn extract_deadline(body: &str) -> Option<DateTime<Utc>> {
+fn extract_deadline(body: &str) -> Option<UtcTime> {
     let line = body
         .lines()
         .find_map(|l| DEADLINE_RE.captures(l).map(|c| c[1].trim().to_string()))?;
 
-    let is_pacific = PACIFIC_TZ_RE.is_match(&line);
-    let cleaned = TRAILING_TZ_ABBREV_RE.replace(&line, "");
-    let naive = NaiveDateTime::parse_from_str(cleaned.trim(), "%B %d, %Y %I:%M %p").ok()?;
-
-    if is_pacific {
-        chrono_tz::America::Los_Angeles
-            .from_local_datetime(&naive)
-            .single()
-            .map(|dt| dt.with_timezone(&Utc))
+    let zone = if PACIFIC_TZ_RE.is_match(&line) {
+        tz::get!("America/Los_Angeles")
     } else {
-        Some(DateTime::<Utc>::from_naive_utc_and_offset(naive, Utc))
-    }
+        tz::TimeZone::UTC
+    };
+    let cleaned = TRAILING_TZ_ABBREV_RE.replace(&line, "");
+    // Email bodies hold no-break spaces, which jiff's formats do not match.
+    let spaced = cleaned.split_whitespace().collect::<Vec<_>>().join(" ");
+    let at = civil::DateTime::strptime("%B %d, %Y %I:%M %p", &spaced)
+        .or_else(|_| civil::DateTime::strptime("%b %d, %Y %I:%M %p", &spaced))
+        .ok()?;
+    UtcTime::from_clock(at, &zone)
 }
 
 /// The real "Vote Now ( <url> )" call-to-action link if present (the
@@ -615,7 +616,12 @@ mod tests {
     fn old_synthetic_deadline_format_still_parses() {
         let body = "Voting ends: July 28, 2026 11:59 PM PT\n";
         let d = extract_deadline(body).expect("old-format deadline should still parse");
-        assert_eq!(d.format("%Y-%m-%d").to_string(), "2026-07-29"); // 11:59 PM PT = 06:59 UTC next day
+        assert_eq!(d.day(), "2026-07-29"); // 11:59 PM PT = 06:59 UTC next day
+    }
+
+    #[test]
+    fn a_deadline_reads_in_its_zone_as_it_did_under_chrono() {
+        crate::clock::tests::check("deadline", extract_deadline);
     }
 
     #[test]

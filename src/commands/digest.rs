@@ -4,10 +4,10 @@
 
 use std::collections::BTreeMap;
 
-use chrono::{DateTime, NaiveDate, Utc};
 use pk_cli_core::CliError;
 use serde_json::json;
 
+use crate::clock::UtcTime;
 use crate::commands::{emit, Ctx};
 use crate::store::CorpusItem;
 
@@ -22,13 +22,9 @@ pub struct Args {
 
 /// Parse `--since` as an ISO calendar date, anchored to that date's
 /// 00:00:00 UTC. Garbage input is a `Usage` error (exit 2), never a panic.
-fn parse_since(s: &str) -> Result<DateTime<Utc>, CliError> {
-    let date = NaiveDate::parse_from_str(s, "%Y-%m-%d")
-        .map_err(|e| CliError::Usage(format!("--since must be YYYY-MM-DD, got `{s}`: {e}")))?;
-    let naive = date
-        .and_hms_opt(0, 0, 0)
-        .expect("00:00:00 is always a valid time for any calendar date");
-    Ok(DateTime::<Utc>::from_naive_utc_and_offset(naive, Utc))
+fn parse_since(s: &str) -> Result<UtcTime, CliError> {
+    UtcTime::midnight(s)
+        .map_err(|e| CliError::Usage(format!("--since must be YYYY-MM-DD, got `{s}`: {e}")))
 }
 
 /// First 300 *characters* of `body` — never a byte slice, so a multibyte
@@ -55,7 +51,7 @@ pub fn run(ctx: &Ctx, args: &Args) -> Result<(), CliError> {
 
     // (most-recent-item date, rendered group) pairs, so the final sort by
     // "most recent item desc" doesn't need to re-inspect the JSON.
-    let mut groups: Vec<(DateTime<Utc>, String, serde_json::Value)> = by_property
+    let mut groups: Vec<(UtcTime, String, serde_json::Value)> = by_property
         .into_iter()
         .map(|(property, mut group_items)| {
             group_items.sort_by_key(|i| std::cmp::Reverse(i.date));
