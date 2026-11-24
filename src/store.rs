@@ -16,10 +16,10 @@ use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use chrono::{DateTime, Utc};
 use pk_cli_core::CliError;
 use serde::{Deserialize, Serialize};
 
+use crate::clock::UtcTime;
 use crate::model::{LedgerEntry, StanceFile, VoteRecord};
 
 fn default_corpus_item_schema() -> String {
@@ -34,7 +34,7 @@ pub struct CorpusItem {
     pub schema: String,
     pub property: String,
     pub msg_id: String,
-    pub date: DateTime<Utc>,
+    pub date: UtcTime,
     pub subject: String,
     /// update|result
     pub kind: String,
@@ -64,7 +64,7 @@ impl CorpusItem {
 /// A recorded ToS/compliance verification, e.g. from `verify record`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Verification {
-    pub recorded_at: DateTime<Utc>,
+    pub recorded_at: UtcTime,
     pub note: Option<String>,
 }
 
@@ -104,7 +104,7 @@ impl Default for VerificationsFile {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct LastScanFile {
     schema: String,
-    at: Option<DateTime<Utc>>,
+    at: Option<UtcTime>,
     #[serde(default)]
     unread: u64,
     #[serde(default)]
@@ -114,7 +114,7 @@ struct LastScanFile {
 /// What the last `scan` covered.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct LastScan {
-    pub at: DateTime<Utc>,
+    pub at: UtcTime,
     /// Emails it found and could not read. The next scan tries them again.
     pub unread: u64,
     /// `--query`, `--max` or the search cap kept it from all the matching mail.

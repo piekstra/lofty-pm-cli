@@ -58,7 +58,7 @@ fn list(ctx: &Ctx) -> Result<(), CliError> {
             }
             VoteState::Recommended => {
                 if let Some(deadline) = vote.deadline {
-                    let hours_left = (deadline - now).num_seconds() as f64 / 3600.0;
+                    let hours_left = deadline.seconds_since(now) as f64 / 3600.0;
                     let fired = levels
                         .iter()
                         .copied()

@@ -4,9 +4,9 @@
 
 use std::process::Command;
 
-use chrono::{DateTime, Utc};
 use pk_cli_core::CliError;
 
+use crate::clock::UtcTime;
 use crate::config::Config;
 
 /// A parsed `gro mail read` result.
@@ -18,7 +18,7 @@ pub struct RawEmail {
     pub from: String,
     pub subject: String,
     #[allow(dead_code)]
-    pub date: Option<DateTime<Utc>>,
+    pub date: Option<UtcTime>,
     pub body: String,
 }
 
@@ -122,9 +122,7 @@ pub fn parse_read_output(id: &str, out: &str) -> Result<RawEmail, CliError> {
         } else if let Some(v) = line.strip_prefix("Subject:") {
             subject = v.trim().to_string();
         } else if let Some(v) = line.strip_prefix("Date:") {
-            date = DateTime::parse_from_rfc2822(v.trim())
-                .ok()
-                .map(|d| d.with_timezone(&Utc));
+            date = UtcTime::from_rfc2822(v.trim());
         }
         // Unknown header lines (ID:, To:, Categories:, ...) fall through
         // unhandled — tolerated by design.

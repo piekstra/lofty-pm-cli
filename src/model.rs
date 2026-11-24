@@ -2,9 +2,10 @@
 
 use std::collections::BTreeMap;
 
-use chrono::{DateTime, Utc};
 use pk_cli_core::CliError;
 use serde::{Deserialize, Serialize};
+
+use crate::clock::UtcTime;
 
 /// Lifecycle of a single vote, from first sighting through resolution.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
@@ -45,7 +46,7 @@ pub struct Recommendation {
     pub confidence: f64,
     pub tier: Tier,
     pub reasoning: String,
-    pub at: DateTime<Utc>,
+    pub at: UtcTime,
 }
 
 /// The human's (or agent's, in auto mode) decision on a vote.
@@ -54,14 +55,14 @@ pub struct Decision {
     /// accepted|overridden|declined
     pub action: String,
     pub position: Option<String>,
-    pub at: DateTime<Utc>,
+    pub at: UtcTime,
 }
 
 /// One immutable ledger record: either a state transition or a bare event.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LedgerEntry {
     pub schema: String,
-    pub at: DateTime<Utc>,
+    pub at: UtcTime,
     pub vote_id: Option<String>,
     pub actor: Actor,
     pub event: String,
@@ -125,7 +126,7 @@ pub struct VoteRecord {
     pub subject: String,
     pub proposal: String,
     pub options: Vec<String>,
-    pub deadline: Option<DateTime<Utc>>,
+    pub deadline: Option<UtcTime>,
     pub vote_link: Option<String>,
     pub tier: Option<Tier>,
     pub state: VoteState,
@@ -135,7 +136,7 @@ pub struct VoteRecord {
     pub message_ids: Vec<String>,
     pub raw: Option<String>,
     pub reminded_levels: Vec<i64>,
-    pub created_at: DateTime<Utc>,
+    pub created_at: UtcTime,
 }
 
 impl VoteRecord {
@@ -239,7 +240,7 @@ pub struct StanceProfile {
 /// or `"<property>.horizon"`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FieldMeta {
-    pub interviewed_at: DateTime<Utc>,
+    pub interviewed_at: UtcTime,
     pub updated_by: String,
 }
 

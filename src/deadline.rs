@@ -2,15 +2,15 @@
 //! (pre-listing): pre-decision votes whose deadline has passed are marked
 //! `Missed` by the clock, not a person.
 
-use chrono::{DateTime, Utc};
 use pk_cli_core::CliError;
 
+use crate::clock::UtcTime;
 use crate::model::{Actor, LedgerEntry, VoteRecord, VoteState};
 use crate::store::Store;
 
 /// Whether the clock has run out on a vote nobody decided: what the sweep marks
 /// `Missed`, and what the read-only MCP tools report as missed without writing it.
-pub fn lapsed(record: &VoteRecord, now: DateTime<Utc>) -> bool {
+pub fn lapsed(record: &VoteRecord, now: UtcTime) -> bool {
     let pre_decision = matches!(
         record.state,
         VoteState::NeedsManualParse | VoteState::NeedsAnalysis | VoteState::Recommended

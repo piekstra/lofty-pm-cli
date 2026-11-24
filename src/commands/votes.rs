@@ -1,10 +1,10 @@
 //! `votes` — list/show/context tracked votes, and amend a
 //! `needs-manual-parse` record by hand.
 
-use chrono::{DateTime, Utc};
 use pk_cli_core::CliError;
 use serde_json::{json, Value};
 
+use crate::clock::UtcTime;
 use crate::commands::{emit, read_file_or_stdin, Ctx};
 use crate::config::Config;
 use crate::model::{Actor, LedgerEntry, VoteState};
@@ -260,7 +260,7 @@ fn amend(
         vote.proposal = read_file_or_stdin(path)?;
     }
     if let Some(d) = deadline {
-        let parsed: DateTime<Utc> = d
+        let parsed: UtcTime = d
             .parse()
             .map_err(|e| CliError::Usage(format!("--deadline must be RFC 3339, got `{d}`: {e}")))?;
         vote.deadline = Some(parsed);
