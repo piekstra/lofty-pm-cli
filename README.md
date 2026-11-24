@@ -164,4 +164,6 @@ See [`AGENTS.md`](AGENTS.md) for the fuller house rules.
 
 ## License
 
-MIT. See [`LICENSE`](LICENSE).
+Copyright (C) 2026 piekstra. Licensed under the GNU Affero General Public
+License, version 3 only (AGPL-3.0-only); see [LICENSE](LICENSE). Releases up to
+and including v0.2.1 were published under MIT.
